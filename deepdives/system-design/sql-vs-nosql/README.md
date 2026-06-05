@@ -420,6 +420,44 @@ Tradeoff:
 
   Database administrators must choose the appropriate isolation level based on the correctness requirements of the application—many systems use read committed by default and upgrade to repeatable read or serializable only for specific operations that need stronger guarantees.
 
+```mermaid
+graph LR
+    subgraph "Anomalies by Isolation Level"
+        Level[Isolation Level]
+        DR["Dirty Reads<br/>✓=Allowed ✗=Prevented"]
+        NRR[Non-Repeatable Reads]
+        PR[Phantom Reads]
+        WS[Write Skew]
+        
+        RC[Read Committed] --> DR1["✗"]
+        RC --> NRR1["✓"]
+        RC --> PR1["✓"]
+        RC --> WS1["✓"]
+        
+        RR[Repeatable Read] --> DR2["✗"]
+        RR --> NRR2["✗"]
+        RR --> PR2["✓"]
+        RR --> WS2["✓"]
+        
+        SER[Serializable] --> DR3["✗"]
+        SER --> NRR3["✗"]
+        SER --> PR3["✗"]
+        SER --> WS3["✗"]
+    end
+    
+    style DR1 fill:#9f9,stroke:#333
+    style NRR2 fill:#9f9,stroke:#333
+    style PR3 fill:#9f9,stroke:#333
+    style WS3 fill:#9f9,stroke:#333
+    style NRR1 fill:#f99,stroke:#333
+    style PR1 fill:#f99,stroke:#333
+    style WS1 fill:#f99,stroke:#333
+    style PR2 fill:#f99,stroke:#333
+    style WS2 fill:#f99,stroke:#333
+```
+
+This matrix shows which anomalies are prevented (✗) and which are allowed (✓) at each isolation level, helping choose the right balance between consistency and performance.
+
 ---
 
 ### Indexes and Storage Engines
@@ -675,6 +713,24 @@ On database startup after crash:
 4. Bring database to consistent state
 
 The WAL is the foundation of ACID durability in relational databases.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant WAL
+    participant BufferPool
+    participant Disk
+    
+    Client->>WAL: 1. Begin Transaction
+    Client->>WAL: 2. Write changes to WAL buffer
+    WAL->>Disk: 3. fsync WAL to disk
+    Disk-->>WAL: 4. Acknowledge
+    WAL-->>Client: 5. Commit Ack ✓
+    Client->>BufferPool: 6. Apply changes to data pages
+    Note over BufferPool,Disk: 7. Lazy flush (checkpoint/background)
+```
+
+This sequence diagram shows how WAL ensures durability by persisting changes to disk before acknowledging commits to the client.
 
 #### Clustered vs heap tables (important for performance)
 The choice between heap and clustered storage organization has profound implications for query performance and is a key difference between database engines like PostgreSQL (heap) and InnoDB (clustered).
@@ -961,6 +1017,30 @@ This approach fundamentally changes the concurrency model by eliminating the rea
 
   This optimistic concurrency approach trades potential retry overhead for reduced blocking.
 
+```mermaid
+graph TD
+    subgraph "MVCC Version Chain for Row ID=100"
+        V1[Version 1<br/>tx_id=50<br/>value='Alice'<br/>xmin=50 xmax=55]
+        V2[Version 2<br/>tx_id=60<br/>value='Bob'<br/>xmin=60 xmax=70]
+        V3[Version 3<br/>tx_id=80<br/>value='Charlie'<br/>xmin=80 xmax=∞]
+    end
+    
+    V1 --> V2
+    V2 --> V3
+    
+    subgraph "Transaction Visibility"
+        T1[tx_id=52<br/>sees V1]
+        T2[tx_id=65<br/>sees V2]
+        T3[tx_id=85<br/>sees V3]
+    end
+    
+    V1 -.-> T1
+    V2 -.-> T2
+    V3 -.-> T3
+```
+
+This diagram shows how MVCC maintains multiple versions of the same row, with each transaction seeing a consistent snapshot based on its transaction ID.
+
 Benefits:
 
 - High read concurrency: because readers never block writers and writers never block readers, MVCC enables excellent read throughput even under heavy write load.
@@ -1005,6 +1085,31 @@ Common in MySQL/Postgres setups: primary-replica replication is the most common 
 
 - The primary server handles all writes and streams change data to one or more replica servers
 - The replicas apply the changes to maintain copies of the data
+
+```mermaid
+graph TB
+    subgraph "Write Path"
+        Client[Client] -->|Write| Primary[Primary Server]
+        Primary -->|Execute| WAL1[WAL]
+        Primary -->|Stream| R1[Replica 1]
+        Primary -->|Stream| R2[Replica 2]
+        Primary -->|Stream| R3[Replica 3]
+    end
+    
+    subgraph "Read Path"
+        Client2[Client] -->|Read Strong| Primary
+        Client3[Client] -->|Read Eventual| R1
+        Client4[Client] -->|Read Eventual| R2
+        Client5[Client] -->|Read Eventual| R3
+    end
+    
+    style Primary fill:#f9f,stroke:#333
+    style R1 fill:#bbf,stroke:#333
+    style R2 fill:#bbf,stroke:#333
+    style R3 fill:#bbf,stroke:#333
+```
+
+This diagram shows how writes flow through the primary to replicas, while reads can be served from either primary (for strong consistency) or replicas (for eventual consistency).
 
 - Primary handles writes: all write operations (INSERT, UPDATE, DELETE) are sent to the primary server.
 
@@ -1309,192 +1414,84 @@ Tradeoffs:
 ## NoSQL Databases
 
 ### Why NoSQL Exists
-NoSQL became popular because large-scale internet workloads needed: in the late 2000s and early 2010s, companies like Google, Amazon, Facebook, and Twitter encountered scaling challenges that traditional RDBMS couldn't handle efficiently.
-
-These workloads had different characteristics than the transactional business applications that relational databases were designed for.
+NoSQL emerged in the late 2000s and early 2010s when companies like Google, Amazon, Facebook, and Twitter encountered scaling challenges that traditional RDBMS couldn't handle efficiently. These internet-scale workloads had fundamentally different characteristics than the transactional business applications that relational databases were designed for.
 
 - Horizontal scaling on commodity hardware: internet-scale applications needed to handle millions of users and petabytes of data.
 
-  Vertical scaling:
-  - Was insufficient and too expensive
+  Vertical scaling was insufficient and prohibitively expensive. In response, NoSQL databases were designed from the ground up to run on clusters of commodity servers, automatically partitioning data and distributing load. This horizontal scaling approach allowed companies to add capacity incrementally by adding more servers rather than replacing existing ones with larger machines.
 
-  NoSQL databases:
-  - Were designed from the ground up to run on clusters of commodity servers
-  - Automatically partitioning data and distributing load
+- Predictable performance at high throughput became critical—at scale, the variability of query performance becomes as important as average performance. NoSQL databases optimize for predictable latency by avoiding expensive operations like joins, complex query optimization, and distributed transactions, while simplifying the query model and optimizing for known access patterns. This allows NoSQL systems to provide consistent performance even under heavy load, which is critical for SLAs and user experience at scale.
 
-  This horizontal scaling allowed companies to:
-  - Add capacity incrementally by adding more servers rather than replacing existing ones with larger machines
+- Flexible data models became essential for rapidly evolving products. Internet products evolve rapidly with frequent schema changes, but RDBMS schema migrations are operationally complex and can cause downtime. NoSQL's schemaless or schema-flexible models allow developers to iterate quickly without planning migrations far in advance. For example, document databases allow adding new fields to documents without requiring schema changes. This flexibility accelerates development velocity, which is crucial for fast-moving product teams.
 
-- Predictable performance at high throughput: at scale, the variability of query performance becomes as important as average performance.
+- Geo-distribution and high availability became requirements for global applications serving users worldwide with low latency. NoSQL databases were designed with multi-region deployment in mind, using tunable consistency to balance latency and correctness. Many NoSQL systems can continue accepting writes even during network partitions by relaxing consistency requirements. This always-available design is valuable for globally distributed services where availability is prioritized over strong consistency.
 
-  NoSQL databases optimize for predictable latency by:
-  - Avoiding expensive operations like joins, complex query optimization, and distributed transactions
-  - Simplifying the query model and optimizing for known access patterns
+The key idea is to **optimize for specific access patterns**. Unlike relational databases which are general-purpose tools, NoSQL databases are specialized for specific access patterns. This specialization comes from recognizing that at scale, you can't optimize for everything—you must choose what to optimize for.
 
-  This allows:
-  - NoSQL systems to provide consistent performance even under heavy load
-  - This predictability is critical for SLAs and user experience at scale
+- **Denormalizing**: storing related data together to avoid joins. In a social media application, you might store a user's posts directly in the user document rather than in a separate posts table. This denormalization makes reads faster (single document fetch) but makes writes slower (you must update all denormalized copies). The philosophy is to optimize for the common case (reads) and accept complexity for the less common case (writes).
 
-- Flexible data models for rapidly evolving products: internet products evolve rapidly, with frequent schema changes.
+- **Avoiding joins**: joins are expensive in distributed systems because they require coordinating data from multiple nodes, potentially across the network. NoSQL databases avoid joins by designing the data model around access patterns—if you need to fetch related data together, store it together. This query-driven data modeling requires upfront planning about access patterns but enables predictable performance at scale.
 
-  RDBMS schema migrations:
-  - Are operationally complex and can cause downtime
-
-  NoSQL's schemaless or schema-flexible models:
-  - Allow developers to iterate quickly without planning migrations far in advance
-  - Document databases, for example, allow adding new fields to documents without requiring a schema change
-
-  This flexibility accelerates development velocity, which is crucial for fast-moving product teams.
-
-- Geo-distribution and high availability: global applications need to serve users worldwide with low latency.
-
-  NoSQL databases:
-  - Were designed with multi-region deployment in mind
-  - Use tunable consistency to balance latency and correctness
-  - Many NoSQL systems can continue accepting writes even during network partitions by relaxing consistency requirements
-
-  This always-available design is valuable for globally distributed services where availability is prioritized over strong consistency.
-
-The key idea: **optimize for specific access patterns**, often by: unlike relational databases which are general-purpose tools, NoSQL databases are specialized for specific access patterns.
-
-This specialization comes from recognizing that at scale, you can't optimize for everything—you must choose what to optimize for.
-
-- Denormalizing: storing related data together to avoid joins.
-
-  For example:
-  - In a social media application, you might store a user's posts directly in the user document rather than in a separate posts table
-
-  This denormalization:
-  - Makes reads faster (single document fetch) but makes writes slower (you must update all denormalized copies)
-
-  The philosophy is to optimize for the common case (reads) and accept complexity for the less common case (writes).
-
-- Avoiding joins: joins are expensive in distributed systems because they require coordinating data from multiple nodes, potentially across the network.
-
-  NoSQL databases avoid joins by:
-  - Designing the data model around access patterns—if you need to fetch related data together, store it together
-
-  This query-driven data modeling:
-  - Requires upfront planning about access patterns
-  - Enables predictable performance at scale
-
-- Relaxing constraints/transactions: not all applications need ACID transactions.
-
-  Many internet applications:
-  - Can tolerate eventual consistency
-  - Can implement application-level compensation for inconsistencies
-
-  By relaxing these requirements:
-  - NoSQL databases can achieve higher throughput and better availability
-
-  This doesn't mean NoSQL can't provide consistency—many systems offer tunable consistency that allows you to choose strong consistency when you need it and weaker consistency when you don't.
+- **Relaxing constraints/transactions**: not all applications need ACID transactions. Many internet applications can tolerate eventual consistency and implement application-level compensation for inconsistencies. By relaxing these requirements, NoSQL databases can achieve higher throughput and better availability. This doesn't mean NoSQL can't provide consistency—many systems offer tunable consistency that allows you to choose strong consistency when you need it and weaker consistency when you don't.
 
 ---
 
 ### NoSQL Taxonomy
 
-NoSQL commonly falls into: while "NoSQL" is an umbrella term, different NoSQL databases serve fundamentally different use cases. Understanding these categories is crucial because the right choice depends entirely on your access patterns and requirements.
+While "NoSQL" is an umbrella term, different NoSQL databases serve fundamentally different use cases. Understanding these categories is crucial because the right choice depends entirely on your access patterns and requirements.
 
 - **Key-Value**: `key -> blob/value` - the simplest NoSQL model, providing O(1) access to values by key.
 
-  Key-value stores:
-  - Treat values as opaque blobs—the database doesn't understand the structure of the data, it just stores and retrieves it
-  - This simplicity enables extreme performance and scalability
+  Key-value stores treat values as opaque blobs—the database doesn't understand the structure of the data, it just stores and retrieves it. This simplicity enables extreme performance and scalability. Use cases include caching (Redis, Memcached), session storage, configuration data, and simple object storage. The tradeoff is limited query capabilities—you can only get by key or scan all keys. Complex queries require application-side processing or additional indexes.
 
-  Use cases include:
-  - Caching (Redis, Memcached)
-  - Session storage
-  - Configuration data
-  - Simple object storage
+- **Document**: JSON-like documents with indexes. Document stores store hierarchical data structures (JSON, BSON, XML) as documents. Each document can have a different structure, providing schema flexibility. Document databases automatically index fields within documents, enabling rich query capabilities including nested field queries and array operations. Use cases include content management, catalogs, user profiles, and any data that naturally maps to hierarchical structures. Examples include MongoDB, Couchbase, and RavenDB. The tradeoff is that document size limits exist (typically 16MB in MongoDB), and complex queries across many documents can be slow.
 
-  The tradeoff is limited query capabilities—you can only get by key or scan all keys. Complex queries require application-side processing or additional indexes.
+- **Wide-Column**: partition key + clustering keys + columns (Bigtable/Cassandra). Wide-column stores use a multi-dimensional map model: row key (partition key) + column key + timestamp maps to a value. This design enables efficient range scans within a partition and automatic sorting by clustering keys. Wide-column stores excel at time-series data, logging, and any workload with predictable access patterns based on partition keys. They provide tunable consistency and linear scalability. Examples include Cassandra, ScyllaDB, and Amazon DynamoDB. The tradeoff is complex data modeling—you must design your partition keys carefully to avoid hotspots, and joins are not supported.
 
-- **Document**: JSON-like documents with indexes - document stores store hierarchical data structures (JSON, BSON, XML) as documents.
+- **Graph**: nodes/edges for relationship traversals. Graph databases specialize in storing and querying relationships. Data is modeled as nodes (entities) and edges (relationships) with properties. They support graph traversal queries like "Find all friends of friends who live in San Francisco" which would require expensive recursive joins in relational databases. Use cases include social networks, recommendation engines, fraud detection, and network analysis. Examples include Neo4j, Amazon Neptune, and ArangoDB. The tradeoff is that graph databases are specialized—don't use one if your primary access patterns are simple lookups or aggregations.
 
-  Each document:
-  - Can have a different structure, providing schema flexibility
+- **Search/Index**: inverted indexes optimized for full-text. Search databases build inverted indexes that map terms to document IDs. This enables fast full-text search, faceted search, and relevance ranking. They support complex queries including fuzzy matching, phrase queries, and Boolean combinations. Use cases include e-commerce product search, log analysis, and document search. Examples include Elasticsearch, OpenSearch, and Solr. The tradeoff is eventual consistency—indexing is asynchronous, so newly written data may not be immediately searchable.
 
-  Document databases:
-  - Automatically index fields within documents, enabling rich query capabilities including nested field queries and array operations
-
-  Use cases include:
-  - Content management
-  - Catalogs
-  - User profiles
-  - Any data that naturally maps to hierarchical structures
-
-  Examples include MongoDB, Couchbase, and RavenDB. The tradeoff is that document size limits exist (typically 16MB in MongoDB), and complex queries across many documents can be slow.
-
-- **Wide-Column**: partition key + clustering keys + columns (Bigtable/Cassandra) - wide-column stores use a multi-dimensional map model: row key (partition key) + column key + timestamp maps to a value.
-
-  This design:
-  - Enables efficient range scans within a partition
-  - Automatic sorting by clustering keys
-
-  Wide-column stores excel at:
-  - Time-series data
-  - Logging
-  - Any workload with predictable access patterns based on partition keys
-
-  They:
-  - Provide tunable consistency and linear scalability
-
-  Examples include Cassandra, ScyllaDB, and Amazon DynamoDB. The tradeoff is complex data modeling—you must design your partition keys carefully to avoid hotspots, and joins are not supported.
-
-- **Graph**: nodes/edges for relationship traversals - graph databases specialize in storing and querying relationships.
-
-  Data is modeled as:
-  - Nodes (entities) and edges (relationships) with properties
-
-  They support graph traversal queries like:
-  - "Find all friends of friends who live in San Francisco" which would require expensive recursive joins in relational databases
-
-  Use cases include:
-  - Social networks
-  - Recommendation engines
-  - Fraud detection
-  - Network analysis
-
-  Examples include Neo4j, Amazon Neptune, and ArangoDB. The tradeoff is that graph databases are specialized—don't use one if your primary access patterns are simple lookups or aggregations.
-
-- **Search/Index**: inverted indexes optimized for full-text - search databases build inverted indexes that map terms to document IDs.
-
-  This enables:
-  - Fast full-text search
-  - Faceted search
-  - Relevance ranking
-
-  They support complex queries including:
-  - Fuzzy matching
-  - Phrase queries
-  - Boolean combinations
-
-  Use cases include:
-  - E-commerce product search
-  - Log analysis
-  - Document search
-
-  Examples include Elasticsearch, OpenSearch, and Solr. The tradeoff is eventual consistency—indexing is asynchronous, so newly written data may not be immediately searchable.
-
-- **Time-Series**: optimized for timestamped metrics/events - time-series databases are specialized for data indexed by time.
-
-  They:
-  - Use specialized compression algorithms that take advantage of the temporal nature of the data
-  - Provide efficient downsampling and aggregation over time windows
-
-  Use cases include:
-  - Monitoring metrics
-  - IoT sensor data
-  - Financial tick data
-  - Application performance monitoring
-
-  Examples include InfluxDB, TimescaleDB, and Prometheus. The tradeoff is that they're specialized—don't use them for general-purpose data storage.
+- **Time-Series**: optimized for timestamped metrics/events. Time-series databases are specialized for data indexed by time. They use specialized compression algorithms that take advantage of the temporal nature of the data and provide efficient downsampling and aggregation over time windows. Use cases include monitoring metrics, IoT sensor data, financial tick data, and application performance monitoring. Examples include InfluxDB, TimescaleDB, and Prometheus. The tradeoff is that they're specialized—don't use them for general-purpose data storage.
 
 Each category makes different tradeoffs in storage layout and query capabilities.
 
-The key insight is that:
-- NoSQL is not "one thing"—it's a collection of specialized tools, each optimized for different problems
-- Choosing the right NoSQL database requires understanding your access patterns and matching them to the appropriate category
+```mermaid
+graph TD
+    NoSQL[NoSQL Databases]
+    
+    KV[Key-Value<br/>DynamoDB, Redis]
+    DOC[Document<br/>MongoDB, Couchbase]
+    WC[Wide-Column<br/>Cassandra, ScyllaDB]
+    GRAPH[Graph<br/>Neo4j, JanusGraph]
+    SEARCH[Search/Index<br/>Elasticsearch, Solr]
+    TS[Time-Series<br/>InfluxDB, Prometheus]
+    
+    NoSQL --> KV
+    NoSQL --> DOC
+    NoSQL --> WC
+    NoSQL --> GRAPH
+    NoSQL --> SEARCH
+    NoSQL --> TS
+    
+    KV --> KV_use[Use: Caching, Sessions]
+    DOC --> DOC_use[Use: Content, Catalogs]
+    WC --> WC_use[Use: Time-series, Logs]
+    GRAPH --> GRAPH_use[Use: Social, Recommendations]
+    SEARCH --> SEARCH_use[Use: Full-text search]
+    TS --> TS_use[Use: Metrics, IoT]
+    
+    style KV fill:#f9f,stroke:#333
+    style DOC fill:#fbf,stroke:#333
+    style WC fill:#fb9,stroke:#333
+    style GRAPH fill:#9ff,stroke:#333
+    style SEARCH fill:#9bf,stroke:#333
+    style TS fill:#b9f,stroke:#333
+```
+
+This taxonomy tree shows the major NoSQL categories with representative databases and their primary use cases.
+
+The key insight is that NoSQL is not "one thing"—it's a collection of specialized tools, each optimized for different problems. Choosing the right NoSQL database requires understanding your access patterns and matching them to the appropriate category.
 
 ---
 
@@ -1505,159 +1502,75 @@ Examples: DynamoDB, Riak (historical patterns), many internal KV stores.
 #### Core design
 Key-value stores are built on a simple but powerful design that enables extreme scalability and performance.
 
-- Data partitioned by key hash: the cluster uses consistent hashing to map keys to nodes.
+- **Data partitioned by key hash**: the cluster uses consistent hashing to map keys to nodes. Each key is hashed (using algorithms like MD5, SHA-1, or Murmur3), and the hash determines which node stores that key. This ensures an even distribution of keys across the cluster. When nodes are added or removed, consistent hashing minimizes the number of keys that must be moved—only keys whose hash falls into the affected ranges are remapped. This design allows the cluster to scale linearly by adding more nodes.
 
-  Each key:
-  - Is hashed (using algorithms like MD5, SHA-1, or Murmur3)
-  - The hash determines which node stores that key
+```mermaid
+graph TD
+    subgraph "Hash Ring"
+        Ring((0-2³²))
+        
+        N1[Node A<br/>hash: 1000]
+        N2[Node B<br/>hash: 5000]
+        N3[Node C<br/>hash: 9000]
+        N4[Node D<br/>hash: 15000]
+        
+        K1[Key 1<br/>hash: 1200]
+        K2[Key 2<br/>hash: 7000]
+        K3[Key 3<br/>hash: 9500]
+    end
+    
+    Ring --> N1
+    Ring --> N2
+    Ring --> N3
+    Ring --> N4
+    
+    K1 --> N2
+    K2 --> N3
+    K3 --> N4
+    
+    style N1 fill:#f96,stroke:#333
+    style N2 fill:#f96,stroke:#333
+    style N3 fill:#f96,stroke:#333
+    style N4 fill:#f96,stroke:#333
+```
 
-  This:
-  - Ensures an even distribution of keys across the cluster
-  - When nodes are added or removed, consistent hashing minimizes the number of keys that must be moved—only keys whose hash falls into the affected ranges are remapped
-  - This design allows the cluster to scale linearly by adding more nodes
+This consistent hashing ring shows how keys are mapped to the next clockwise node, minimizing data movement when nodes are added or removed.
 
-- Replicated across nodes: each key-value pair is replicated to multiple nodes (the replication factor N) for fault tolerance.
+- **Replicated across nodes**: each key-value pair is replicated to multiple nodes (the replication factor N) for fault tolerance. If a node fails, the data is still available from other replicas. Replication can be synchronous (writes wait for replicas to acknowledge) or asynchronous (writes return immediately and replication happens in the background). The replication strategy affects both durability and write latency. Most key-value stores allow you to configure the replication factor per table or globally.
 
-  If a node fails:
-  - The data is still available from other replicas
-
-  Replication:
-  - Can be synchronous (writes wait for replicas to acknowledge) or asynchronous (writes return immediately and replication happens in the background)
-  - The replication strategy affects both durability and write latency
-  - Most key-value stores allow you to configure the replication factor per table or globally
-
-- Operations are simple: get/put - the simplicity of the key-value model is its strength.
-
-  With only get and put operations (and sometimes delete):
-  - The database can optimize heavily for these specific operations
-  - There's no query optimization, no complex indexing, no joins
-
-  This:
-  - Simplicity enables predictable performance at scale
-  - Some key-value stores add secondary indexes or conditional writes (compare-and-set), but the core model remains simple
-  - This simplicity also makes the database easier to understand and operate
+- **Operations are simple: get/put** - the simplicity of the key-value model is its strength. With only get and put operations (and sometimes delete), the database can optimize heavily for these specific operations. There's no query optimization, no complex indexing, no joins. This simplicity enables predictable performance at scale. Some key-value stores add secondary indexes or conditional writes (compare-and-set), but the core model remains simple. This simplicity also makes the database easier to understand and operate.
 
 #### Consistency model
-Often "tunable": key-value stores typically allow you to configure consistency on a per-operation basis.
+Key-value stores typically offer "tunable" consistency, allowing you to configure consistency on a per-operation basis. This tunability lets you make explicit tradeoffs between consistency, latency, and availability based on your application's needs.
 
-This tunability lets you:
-- Make explicit tradeoffs between consistency, latency, and availability based on your application's needs
+- **Read quorum `R`**: when reading a key, the system reads from R replicas and returns the most recent value based on version information. A higher R provides stronger consistency (more likely to see the latest write) but increases read latency (must wait for more replicas) and reduces availability (read fails if fewer than R replicas are available).
 
-- Read quorum `R`: when reading a key, the system reads from R replicas and returns the most recent value based on version information.
+- **Write quorum `W`**: when writing a key, the system writes to W replicas before acknowledging success. A higher W provides stronger durability (more replicas have the data) and consistency (more replicas see the write) but increases write latency (must wait for more replicas) and reduces availability (write fails if fewer than W replicas are available).
 
-  A higher R:
-  - Provides stronger consistency (more likely to see the latest write)
-  - But increases read latency (must wait for more replicas)
-  - And reduces availability (read fails if fewer than R replicas are available)
+- **Replication factor `N`**: the total number of replicas for each key. A higher N provides better fault tolerance (can tolerate more node failures) but increases cost (more storage) and can increase latency (more replicas to coordinate).
 
-- Write quorum `W`: when writing a key, the system writes to W replicas before acknowledging success.
+Rule of thumb: If `R + W > N`, you can achieve strong reads *for a single key* (under certain assumptions). This quorum condition ensures that any read quorum overlaps with any write quorum. When this holds, a read will always see the most recent committed write because at least one replica from the read set must have participated in the most recent write. This provides linearizability for single-key operations, which is often sufficient for many applications.
 
-  A higher W:
-  - Provides stronger durability (more replicas have the data) and consistency (more replicas see the write)
-  - But increases write latency (must wait for more replicas)
-  - And reduces availability (write fails if fewer than W replicas are available)
-
-- Replication factor `N`: the total number of replicas for each key.
-
-  A higher N:
-  - Provides better fault tolerance (can tolerate more node failures)
-  - But increases cost (more storage)
-  - And can increase latency (more replicas to coordinate)
-
-Rule of thumb:
-
-- If `R + W > N`, you can achieve strong reads *for a single key* (under certain assumptions): this quorum condition ensures that any read quorum overlaps with any write quorum.
-
-  When this holds:
-  - A read will always see the most recent committed write because at least one replica from the read set must have participated in the most recent write
-  - This provides linearizability for single-key operations, which is often sufficient for many applications
-
-- If not, you get eventual consistency: when R + W ≤ N, it's possible for a read to return stale data because the read quorum might not include any replica that has the latest write.
-
-  The system:
-  - Will eventually converge to a consistent state as writes propagate to all replicas
-  - But reads in the interim may see old values
-
-  This eventual consistency model:
-  - Provides lower latency and higher availability at the cost of temporary inconsistency
+If not, you get eventual consistency: when R + W ≤ N, it's possible for a read to return stale data because the read quorum might not include any replica that has the latest write. The system will eventually converge to a consistent state as writes propagate to all replicas, but reads in the interim may see old values. This eventual consistency model provides lower latency and higher availability at the cost of temporary inconsistency.
 
 Internals you should know: key-value stores implement several sophisticated distributed systems mechanisms to provide scalability and fault tolerance.
 
-- **Consistent hashing** distributes keys: consistent hashing is a technique for distributing keys across a changing set of nodes.
+- **Consistent hashing** distributes keys: consistent hashing is a technique for distributing keys across a changing set of nodes. Unlike naive modulo hashing (key % number_of_nodes) which would require moving almost all keys when nodes are added or removed, consistent hashing maps both nodes and keys to a ring (a circular address space). Each key is assigned to the next node clockwise on the ring. When a node is added, it only takes responsibility for keys in the arc between itself and its predecessor. This minimizes data movement during cluster changes. Virtual nodes (multiple points on the ring representing the same physical node) are often used to ensure even distribution of keys and avoid hotspots.
 
-  Unlike naive modulo hashing (key % number_of_nodes):
-  - Which would require moving almost all keys when nodes are added or removed
+- **Vector clocks / versioning** (or last-write-wins) resolves concurrent writes: when two clients write to the same key concurrently, the system needs a way to resolve conflicts. Vector clocks track the version history across replicas—each replica maintains a counter that increments on each write. The vector clock is the set of all replica counters. When reads return multiple conflicting versions, the client or application can resolve the conflict using business logic. Simpler systems use last-write-wins (LWW) based on timestamps, which is easier to implement but can lose data if clocks are skewed. The choice between vector clocks and LWW represents a tradeoff between correctness and complexity.
 
-  Consistent hashing:
-  - Maps both nodes and keys to a ring (a circular address space)
-  - Each key is assigned to the next node clockwise on the ring
-  - When a node is added, it only takes responsibility for keys in the arc between itself and its predecessor
-  - This minimizes data movement during cluster changes
-  - Virtual nodes (multiple points on the ring representing the same physical node) are often used to ensure even distribution of keys and hotspots
-
-- **Vector clocks / versioning** (or last-write-wins) resolves concurrent writes: when two clients write to the same key concurrently, the system needs a way to resolve conflicts.
-
-  Vector clocks:
-  - Track the version history across replicas—each replica maintains a counter that increments on each write
-  - The vector clock is the set of all replica counters
-  - When reads return multiple conflicting versions, the client or application can resolve the conflict using business logic
-
-  Simpler systems:
-  - Use last-write-wins (LWW) based on timestamps, which is easier to implement but can lose data if clocks are skewed
-
-  The choice between vector clocks and LWW represents a tradeoff between correctness and complexity.
-
-- **Hinted handoff** and **anti-entropy** repair divergence: in eventually consistent systems, replicas can diverge due to network partitions or node failures.
-
-  Hinted handoff:
-  - Is a mechanism where if a target replica is down during a write, the coordinator stores a "hint" and later delivers the write when the replica recovers
-
-  Anti-entropy:
-  - Is a background process where replicas compare their data and reconcile differences
-  - Typically using Merkle trees to efficiently detect which keys differ
-
-  These mechanisms ensure the system eventually converges to a consistent state even after temporary failures or network partitions.
+- **Hinted handoff** and **anti-entropy** repair divergence: in eventually consistent systems, replicas can diverge due to network partitions or node failures. Hinted handoff is a mechanism where if a target replica is down during a write, the coordinator stores a "hint" and later delivers the write when the replica recovers. Anti-entropy is a background process where replicas compare their data and reconcile differences, typically using Merkle trees to efficiently detect which keys differ. These mechanisms ensure the system eventually converges to a consistent state even after temporary failures or network partitions.
 
 Tradeoffs:
 
-- Great scalability: key-value stores excel at horizontal scaling.
+- **Great scalability**: key-value stores excel at horizontal scaling. The simple data model and lack of complex operations allow them to scale linearly with the number of nodes. Consistent hashing enables easy addition and removal of nodes with minimal data movement. This scalability makes key-value stores ideal for workloads that need to handle massive throughput across large datasets, such as session stores, caching layers, and simple object storage.
 
-  The simple data model:
-  - And lack of complex operations allow them to scale linearly with the number of nodes
+- **Limited query patterns**: the simplicity of key-value stores is also their limitation. You can only retrieve data by key (or scan all keys, which is expensive).
+  There are no secondary indexes in pure key-value stores (though some like DynamoDB add them), no ad-hoc queries, and no joins. If you need to query by attributes other than the primary key, you must either maintain your own indexes in application code or use a different data model. This limitation requires careful data modeling upfront—you must know your access patterns before designing your keys.
 
-  Consistent hashing:
-  - Enables easy addition and removal of nodes with minimal data movement
+- **Multi-item transactions are hard**: most key-value stores don't support multi-key transactions, especially across different partitions.
 
-  This scalability makes key-value stores ideal for workloads that need to handle massive throughput across large datasets, such as:
-  - Session stores
-  - Caching layers
-  - Simple object storage
-
-- Limited query patterns: the simplicity of key-value stores is also their limitation.
-
-  You can:
-  - Only retrieve data by key (or scan all keys, which is expensive)
-
-  There are:
-  - No secondary indexes in pure key-value stores (though some like DynamoDB add them)
-  - No ad-hoc queries
-  - No joins
-
-  If you need to query by attributes other than the primary key:
-  - You must either maintain your own indexes in application code or use a different data model
-
-  This limitation requires careful data modeling upfront—you must know your access patterns before designing your keys.
-
-- Multi-item transactions are hard: most key-value stores don't support multi-key transactions, especially across different partitions.
-
-  DynamoDB:
-  - Added transaction support for up to 25 items, but this is an exception
-
-  Without transactions:
-  - Applications must implement compensation logic for operations that involve multiple keys
-
-  For example:
-  - Transferring funds between two accounts requires updating both keys atomically, which key-value stores can't guarantee
+  DynamoDB added transaction support for up to 25 items, but this is an exception. Without transactions, applications must implement compensation logic for operations that involve multiple keys. For example, transferring funds between two accounts requires updating both keys atomically, which key-value stores can't guarantee.
 
   This limitation often means key-value stores are used for simpler use cases or combined with other systems for transactional requirements.
 
@@ -1668,173 +1581,57 @@ Tradeoffs:
 Examples: MongoDB, Couchbase.
 
 #### Data model
-Documents are nested objects (JSON/BSON): document stores model data as hierarchical structures rather than flat tables.
+Document stores model data as hierarchical structures (JSON/BSON) rather than flat tables. A document can contain nested objects, arrays, and primitive types—all within a single record. This document model closely matches how applications represent data in memory, reducing the object-relational impedance mismatch that exists with relational databases. BSON (Binary JSON) adds support for additional data types like dates, binary data, and ObjectId that aren't native to JSON.
 
-A document can contain:
-- Nested objects
-- Arrays
-- Primitive types
+The document model excels for aggregate-style entities like user profiles and products with variants. A user profile document might include contact information, preferences, recent activity, and social connections—all in one document. A product document might include product details, pricing, inventory, variants (size, color), and reviews. This aggregation eliminates the need for joins when fetching an entity and its related data. The key is to design documents around how you access data—if you always fetch a user and their profile together, store them in the same document.
 
-All within a single record. This document model:
-- Closely matches how applications represent data in memory
-- Reducing the object-relational impedance mismatch that exists with relational databases
-
-BSON (Binary JSON):
-- Adds support for additional data types like dates, binary data, and ObjectId that aren't native to JSON
-
-Great for:
-
-- Aggregate-style entities (user profile, product with variants): the document model excels when an entity naturally contains all its related data.
-
-  A user profile document might include:
-  - The user's contact information
-  - Preferences
-  - Recent activity
-  - Social connections—all in one document
-
-  A product document might include:
-  - The product details
-  - Pricing
-  - Inventory
-  - Variants (size, color)
-  - Reviews
-
-  This aggregation:
-  - Eliminates the need for joins when fetching an entity and its related data
-
-  The key is to design documents around how you access data—if you always fetch a user and their profile together, store them in the same document.
-
-- Evolving schemas: document databases are schemaless or have flexible schemas.
-
-  Different documents in the same collection:
-  - Can have different fields or structures
-
-  You can:
-  - Add new fields to documents without requiring a schema migration—old documents simply lack the new field, and new documents include it
-
-  This flexibility:
-  - Accelerates development velocity, especially in rapidly evolving products
-  - However, this flexibility requires discipline: the application must handle missing or unexpected fields gracefully
-
-  Some document databases (like MongoDB):
-  - Added schema validation features to enforce structure when needed, providing a balance between flexibility and control
+- **Evolving schemas**: document databases are schemaless or have flexible schemas. Different documents in the same collection can have different fields or structures. You can add new fields to documents without requiring a schema migration—old documents simply lack the new field, and new documents include it. This flexibility accelerates development velocity, especially in rapidly evolving products. However, this flexibility requires discipline: the application must handle missing or unexpected fields gracefully. Some document databases (like MongoDB) added schema validation features to enforce structure when needed, providing a balance between flexibility and control.
 
 #### Indexing and querying
-Document DBs often support: while document stores are schemaless, they still need efficient query capabilities.
+While document stores are schemaless, they still need efficient query capabilities. Most document databases provide indexing and query features that bridge the gap between the flexibility of documents and the need for structured queries.
 
-Most document databases provide indexing and query features that bridge the gap between the flexibility of documents and the need for structured queries.
+- **Secondary indexes**: you can create indexes on any field within documents, including nested fields. Unlike relational databases where indexes are defined on table columns, document store indexes are defined on document fields. When you query on an indexed field, the database can use the index to avoid scanning the entire collection. This enables efficient queries like "Find all users where status is 'active'" or "Find all products where price < 100". Secondary indexes are essential for performance but add write overhead—each write must update all relevant indexes.
 
-- Secondary indexes: you can create indexes on any field within documents, including nested fields.
+- **Compound indexes**: compound indexes index multiple fields together, enabling efficient queries that filter on multiple fields. For example, a compound index on (status, created_at) can efficiently answer queries like "find all active users created in the last week". The order of fields in a compound index matters: queries must use the fields in prefix order to use the index. Document stores also support multikey indexes on array fields, creating an index entry for each element in the array.
 
-  Unlike relational databases where indexes are defined on table columns:
-  - Document store indexes are defined on document fields
+- **Limited joins (or special operators)**: Document databases fundamentally challenge the relational approach to data relationships. Instead of normalizing data across tables and joining at query time, MongoDB encourages you to characterize relationships by cardinality: "one-to-few," "one-to-many," or "one-to-squillions." For one-to-few relationships (like addresses for a person), embedding is ideal—you store related data as sub-documents within the parent. For one-to-many relationships (like parts for a product), referencing works better—you store ObjectID references in an array and perform application-level joins. For one-to-squillions relationships (like log messages for a host), parent-referencing is necessary—you store the parent's ID in child documents to avoid document size limits.
 
-  When you query on an indexed field:
-  - The database can use the index to avoid scanning the entire collection
+Modern MongoDB added the $lookup operator for collection joins, but these differ fundamentally from relational joins. The $lookup operator executes in memory and lacks the sophisticated optimization engines of relational databases. The document model's power comes from embedding related data within single documents, enabling data locality optimization. A single multi-key index can cover filters across embedded subdocuments, eliminating the need for joins entirely. For example, instead of joining orders and order_details tables, you can embed order_details within orders and create an index on {"country_id": 1, "order_details.product_id": 1, "created_at": -1} to efficiently query orders by country and product without any join operation.
 
-  This enables efficient queries like:
-  - "Find all users where status is 'active'"
-  - "Find all products where price < 100"
+When relationships cannot be embedded (like many-to-many scenarios), applications typically handle joins in code or use specialized operators like $graphLookup for graph traversals. The philosophy remains: design documents around your query patterns to avoid runtime joins, prioritizing read performance through thoughtful document structure.
 
-  Secondary indexes:
-  - Are essential for performance but add write overhead—each write must update all relevant indexes
+#### Internals (typical)
+Document stores borrow many techniques from relational databases while adapting them for the document model.
 
-- Compound indexes: compound indexes index multiple fields together, enabling efficient queries that filter on multiple fields.
+- **Storage engines**: Most document stores use B-Trees or LSM-like structures for data storage and indexing.
 
-  For example:
-  - A compound index on (status, created_at) can efficiently answer queries like "find all active users created in the last week"
+  MongoDB's WiredTiger storage engine uses B-Trees for both indexing and document storage, similar to relational databases. Some document stores use LSM (Log-Structured Merge) trees, which optimize for write-heavy workloads by buffering writes in memory and periodically flushing to disk in sorted runs.
 
-  The order of fields in a compound index matters:
-  - Queries must use the fields in prefix order to use the index
+  The choice between B-Trees and LSM trees represents a tradeoff between read and write performance—B-Trees provide better read performance for random lookups, while LSM trees provide better write throughput.
 
-  Document stores also:
-  - Support multikey indexes on array fields, creating an index entry for each element in the array
+- **Document size limits**: MongoDB enforces a 16MB document size limit to prevent performance issues and storage engine complications with very large documents.
 
-- Limited joins (or special operators): early document stores avoided joins entirely, requiring denormalization.
+- **Journaling/WAL for durability**: Like relational databases, document stores use write-ahead logging for durability. Before modifying data on disk, the database writes a log record describing the change. On crash, the database replays the log to recover committed writes.
 
-  Modern document stores like MongoDB:
-  - Added $lookup for joining collections, but these joins are typically less efficient than relational joins because they're executed in the application layer or require memory-intensive operations
+  MongoDB calls this journaling and can be configured for different durability levels—from acknowledging writes after journal write to acknowledging after data is flushed to disk. The WAL approach provides the same benefits as in relational databases: crash recovery and the ability to flush data pages lazily.
 
-  Instead of joins:
-  - Document stores encourage embedding related data within documents
+- **Replication via oplog**: Document stores typically replicate using an operation log (oplog). The primary records all write operations in a capped collection (the oplog), and secondaries tail this log and apply the operations in order.
 
-  For relationships that can't be embedded (like many-to-many):
-  - Applications often perform application-side joins or use special operators like $graphLookup for graph traversals
+  This approach is similar to WAL-based replication in relational databases but operates at a higher level of abstraction (logical operations rather than physical page changes). The oplog enables secondaries to catch up after being disconnected and provides a point-in-time recovery mechanism. Replication in document stores is typically primary-replica with automatic failover, similar to relational databases.
 
-  The philosophy is to design documents around query patterns to avoid joins.
+#### Tradeoffs
 
-Internals (typical): document stores borrow many techniques from relational databases while adapting them for the document model.
+- **Flexible schema helps iteration**: The ability to evolve data structures without migrations accelerates development, especially in early-stage products where requirements change frequently.
 
-- Storage engine (e.g., WiredTiger) often uses B-Trees or LSM-like structures: MongoDB's WiredTiger storage engine uses B-Trees for indexing and document storage, similar to relational databases.
+  Developers can add new fields, change field types, or restructure documents without coordinating with database administrators or scheduling downtime. This flexibility also enables polyglot persistence—different microservices can use different document structures for the same collection if needed. However, this flexibility requires discipline to avoid schema chaos over time.
 
-  Some document stores:
-  - Use LSM (Log-Structured Merge) trees, which optimize for write-heavy workloads by buffering writes in memory and periodically flushing to disk in sorted runs
+- **Application-level constraint enforcement**: Without schema enforcement, the database won't prevent invalid data types, missing required fields, or referential integrity violations.
 
-  The choice between B-Trees and LSM trees:
-  - Represents a tradeoff between read and write performance—B-Trees provide better read performance for random lookups, while LSM trees provide better write throughput
+  The application must validate all data before writing it, which adds complexity and the risk of bugs. For example, the database won't enforce that email addresses are unique or that foreign key references are valid. Some document stores added validation features (MongoDB's schema validation, Couchbase's N1QL) to address this, but the default is still flexibility over enforcement. This constraint enforcement burden shifts from the database to the application layer.
 
-  Document size limits (typically 16MB in MongoDB):
-  - Exist because very large documents can cause performance issues and complicate storage engine operations
+- **Joins and complex aggregations can be costlier than in SQL**: While document stores support aggregation pipelines and some join operations, these are typically less efficient than relational database operations.
 
-- Journaling/WAL for durability: like relational databases, document stores use write-ahead logging for durability.
-
-  Before modifying data on disk:
-  - The database writes a log record describing the change
-
-  On crash:
-  - The database replays the log to recover committed writes
-
-  MongoDB calls this journaling:
-  - It can be configured for different durability levels (from acknowledging writes after journal write to acknowledging after data is flushed to disk)
-
-  The WAL approach:
-  - Provides the same benefits as in relational databases—crash recovery and the ability to flush data pages lazily
-
-- Replication via oplog: document stores typically replicate using an operation log (oplog).
-
-  The primary:
-  - Records all write operations in a capped collection (the oplog)
-  - Secondaries tail this log and apply the operations in order
-
-  This:
-  - Is similar to WAL-based replication in relational databases but operates at a higher level of abstraction (logical operations rather than physical page changes)
-  - The oplog enables secondaries to catch up after being disconnected and provides a point-in-time recovery mechanism
-  - Replication in document stores is typically primary-replica with automatic failover, similar to relational databases
-
-Tradeoffs:
-
-- Flexible schema helps iteration: the ability to evolve data structures without migrations accelerates development, especially in early-stage products where requirements change frequently.
-
-  Developers can:
-  - Add new fields, change field types, or restructure documents without coordinating with database administrators or scheduling downtime
-
-  This flexibility:
-  - Also enables polyglot persistence—different microservices can use different document structures for the same collection if needed
-  - However, this flexibility requires discipline to avoid schema chaos over time
-
-- But you must enforce many constraints in application code: without schema enforcement, the database won't prevent invalid data types, missing required fields, or referential integrity violations.
-
-  The application:
-  - Must validate all data before writing it, which adds complexity and the risk of bugs
-
-  For example:
-  - The database won't enforce that email addresses are unique or that foreign key references are valid
-
-  Some document stores added validation features (MongoDB's schema validation, Couchbase's N1QL) to address this:
-  - But the default is still flexibility over enforcement
-  - This constraint enforcement burden shifts from the database to the application layer
-
-- Joins and complex aggregations can be costlier than in SQL: while document stores support aggregation pipelines and some join operations, these are typically less efficient than relational database operations.
-
-  Aggregations:
-  - Often require materializing entire documents into memory
-  - Joins are performed by the application or require expensive lookups
-
-  For complex analytical queries that involve joining multiple collections and performing multi-stage aggregations:
-  - Relational databases with their sophisticated query optimizers are often more efficient
-
-  Document stores shine:
-  - For operational workloads where you fetch individual entities or simple aggregates, not for complex analytical queries
+  Aggregations often require materializing entire documents into memory, and joins are performed by the application or require expensive lookups. For complex analytical queries that involve joining multiple collections and performing multi-stage aggregations, relational databases with their sophisticated query optimizers are often more efficient. Document stores shine for operational workloads where you fetch individual entities or simple aggregates, not for complex analytical queries.
 
 ---
 
@@ -1843,134 +1640,43 @@ Tradeoffs:
 Examples: Cassandra, HBase, Bigtable-like systems.
 
 #### Mental model
-Data is organized by: wide-column stores use a multi-dimensional map model where data is organized by partition keys and clustering keys.
+Wide-column stores use a multi-dimensional map model where data is organized by partition keys and clustering keys. This design is fundamentally different from relational tables and requires thinking about data modeling in terms of access patterns.
 
-This design:
-- Is fundamentally different from relational tables
-- Requires thinking about data modeling in terms of access patterns
+- **Partition key** (decides which node stores the row): the partition key is hashed to determine which node in the cluster stores the data. All rows with the same partition key are stored together on the same node. This is the most important design decision in wide-column stores: you must choose partition keys that distribute data evenly across the cluster (to avoid hotspots) while grouping data that's accessed together. For example, in a time-series application, you might partition by (device_id, date) so all readings from a device on a given date are stored together and can be fetched efficiently.
 
-- **Partition key** (decides which node stores the row): the partition key is hashed to determine which node in the cluster stores the data.
+- **Clustering key** (sort order inside partition): within a partition, rows are sorted by the clustering key. This sorting is physical—data is stored on disk in clustering key order, enabling efficient range scans. For example, if your clustering key is timestamp, all rows in a partition are stored in timestamp order, making time range queries sequential disk reads rather than random I/O. You can have multiple clustering key components, creating a hierarchical sort order (e.g., (date, timestamp) sorts by date first, then by timestamp within each date).
 
-  All rows with the same partition key:
-  - Are stored together on the same node
+This is a powerful design because it makes common queries extremely fast: by designing your partition and clustering keys around your query patterns, you can achieve predictable performance that scales linearly. The database doesn't need to sort or scan irrelevant data—it goes directly to the partition and reads sequentially through the clustering key range.
 
-  This is the most important design decision in wide-column stores:
-  - You must choose partition keys that distribute data evenly across the cluster (to avoid hotspots) while grouping data that's accessed together
+- **Read by partition key**: fetching all data for a specific partition key is a single coordinated read from the relevant node(s). This is O(1) complexity regardless of how much data is in other partitions. For example, fetching all readings for device_123 on 2024-01-15 is efficient regardless of whether you have 100 devices or 1 million devices.
 
-  For example:
-  - In a time-series application, you might partition by (device_id, date) so all readings from a device on a given date are stored together and can be fetched efficiently
-
-- **Clustering key** (sort order inside partition): within a partition, rows are sorted by the clustering key.
-
-  This sorting:
-  - Is physical—data is stored on disk in clustering key order, enabling efficient range scans
-
-  For example:
-  - If your clustering key is timestamp, all rows in a partition are stored in timestamp order
-  - Querying for a time range becomes a sequential disk read rather than random I/O
-
-  You can:
-  - Have multiple clustering key components, creating a hierarchical sort order (e.g., (date, timestamp) sorts by date first, then by timestamp within each date)
-
-This is a powerful design because it makes common queries extremely fast: by designing your partition and clustering keys around your query patterns, you can achieve predictable performance that scales linearly.
-
-The database:
-- Doesn't need to sort or scan irrelevant data
-- It goes directly to the partition and reads sequentially through the clustering key range
-
-- Read by partition key: fetching all data for a specific partition key is a single coordinated read from the relevant node(s).
-
-  This:
-  - Is O(1) complexity regardless of how much data is in other partitions
-
-  For example:
-  - Fetching all readings for device_123 on 2024-01-15 is efficient regardless of whether you have 100 devices or 1 million devices
-
-- Scan a contiguous range of clustering keys: because data is physically sorted by clustering key, range scans are efficient sequential reads.
-
-  Fetching all readings between 10:00 and 11:00 for a device:
-  - Reads a contiguous range on disk
-
-  This is why:
-  - Wide-column stores excel at time-series data, logging, and any workload with predictable range queries
+- **Scan a contiguous range of clustering keys**: because data is physically sorted by clustering key, range scans are efficient sequential reads. Fetching all readings between 10:00 and 11:00 for a device reads a contiguous range on disk. This is why wide-column stores excel at time-series data, logging, and any workload with predictable range queries.
 
 Internals: wide-column stores are optimized for write-heavy workloads using storage structures that differ from traditional B-Tree databases.
 
-- Typically LSM-tree storage: Log-Structured Merge (LSM) trees optimize for write throughput by buffering writes in memory and periodically flushing sorted runs to disk.
+- **Typically LSM-tree storage**: Log-Structured Merge (LSM) trees optimize for write throughput by buffering writes in memory and periodically flushing sorted runs to disk. Unlike B-Trees where updates modify existing pages in place, LSM trees are append-only—new writes are always added to new files. This eliminates random disk I/O for writes, making them sequential and much faster. However, reads must check multiple sorted runs (memory table + disk files) and merge results, which can be slower than B-Tree reads. This read-write tradeoff is intentional—LSM trees sacrifice some read performance for superior write performance and compression.
 
-  Unlike B-Trees where updates modify existing pages in place:
-  - LSM trees are append-only—new writes are always added to new files
+- **Append-heavy writes**: the append-only nature of LSM trees makes them ideal for write-heavy workloads like logging, time-series data, and event sourcing. Writes are always appended, never updated in place. Even updates are written as new versions, with old versions marked for deletion during compaction. This append-only pattern enables efficient compression because similar data is stored contiguously and simplifies replication—replicas can simply replicate the append-only log of operations.
 
-  This:
-  - Eliminates random disk I/O for writes, making them sequential and much faster
-  - Reads must check multiple sorted runs (memory table + disk files) and merge results, which can be slower than B-Tree reads
+  The downside is that storage can grow unbounded without compaction, and deleted data isn't reclaimed until compaction runs.
 
-  This read-write tradeoff:
-  - Is intentional—LSM trees sacrifice some read performance for superior write performance and compression
+- **Compaction merges files**: over time, the number of sorted files grows, which slows down reads (more files to check) and wastes space (multiple versions of the same key). Compaction merges multiple sorted files into fewer, larger files, removing deleted data and combining versions. This is similar to the merge phase of merge sort.
 
-- Append-heavy writes: the append-only nature of LSM trees makes them ideal for write-heavy workloads like logging, time-series data, and event sourcing.
-
-  Writes:
-  - Are always appended, never updated in place
-  - Even updates are written as new versions, with old versions marked for deletion during compaction
-
-  This append-only pattern:
-  - Enables efficient compression because similar data is stored contiguously
-  - It also simplifies replication—replicas can simply replicate the append-only log of operations
-
-  The downside:
-  - Storage can grow unbounded without compaction, and deleted data isn't reclaimed until compaction runs
-
-- Compaction merges files: over time, the number of sorted files grows, which slows down reads (more files to check) and wastes space (multiple versions of the same key).
-
-  Compaction:
-  - Merges multiple sorted files into fewer, larger files, removing deleted data and combining versions
-  - This is similar to the merge phase of merge sort
-
-  Compaction:
-  - Is I/O-intensive and can impact performance while running
-  - So databases tune compaction strategies (size-tiered vs. leveled compaction) based on workload characteristics
-
-  The compaction process:
-  - Is critical for maintaining read performance and reclaiming space in LSM-based systems
+  Compaction is I/O-intensive and can impact performance while running, so databases tune compaction strategies (size-tiered vs. leveled compaction) based on workload characteristics. The compaction process is critical for maintaining read performance and reclaiming space in LSM-based systems.
 
 Tradeoffs:
 
-- You must design tables around queries: wide-column stores require query-driven data modeling.
+- **You must design tables around queries**: wide-column stores require query-driven data modeling. Unlike relational databases where you design a normalized schema and then write queries, in wide-column stores you must know your query patterns upfront and design your partition and clustering keys accordingly. If your access patterns change, you may need to redesign your tables and migrate data.
 
-  Unlike relational databases where you design a normalized schema and then write queries:
-  - In wide-column stores you must know your query patterns upfront and design your partition and clustering keys accordingly
+  This upfront planning is a barrier to ad-hoc querying but enables predictable performance at scale. The mental model shift—from data modeling to access pattern modeling—is significant for teams transitioning from relational databases.
 
-  If your access patterns change:
-  - You may need to redesign your tables and migrate data
+- **Secondary indexes are limited/expensive**: secondary indexes in wide-column stores are fundamentally different from relational indexes. Because data is partitioned, a secondary index must either be local (indexing only data within a partition) or global (indexing across all partitions).
 
-  This:
-  - Upfront planning is a barrier to ad-hoc querying but enables predictable performance at scale
-  - The mental model shift—from data modeling to access pattern modeling—is significant for teams transitioning from relational databases
+  Local indexes are efficient for queries that include the partition key but useless for queries that don't. Global indexes enable queries by non-partition keys but require cross-node coordination and are expensive to maintain. Cassandra's secondary indexes, for example, are generally not recommended for high-cardinality data because they can cause hotspotting and performance issues.
 
-- Secondary indexes are limited/expensive: secondary indexes in wide-column stores are fundamentally different from relational indexes.
+  The recommended approach is to denormalize data into multiple tables with different partition keys optimized for different queries.
 
-  Because data is partitioned:
-  - A secondary index must either be local (indexing only data within a partition) or global (indexing across all partitions)
-
-  Local indexes:
-  - Are efficient for queries that include the partition key but useless for queries that don't
-
-  Global indexes:
-  - Enable queries by non-partition keys but require cross-node coordination and are expensive to maintain
-
-  Cassandra's secondary indexes, for example:
-  - Are generally not recommended for high-cardinality data because they can cause hotspotting and performance issues
-
-  The recommended approach:
-  - Is to denormalize data into multiple tables with different partition keys optimized for different queries
-
-- Cross-partition aggregations are hard: wide-column stores excel at single-partition queries but struggle with operations that require coordinating across partitions.
-
-  Aggregations that span multiple partitions (like "count all users worldwide"):
-  - Require querying multiple nodes and combining results, which is slow and complex
-
-  There's:
+- **Cross-partition aggregations are hard**: wide-column stores excel at single-partition queries but struggle with operations that require coordinating across partitions. Aggregations that span multiple partitions (like "count all users worldwide") require querying multiple nodes and combining results, which is slow and complex. There's
   - No built-in distributed query optimizer like in relational databases
 
   Applications:
@@ -1985,110 +1691,30 @@ Tradeoffs:
 
 Examples: Neo4j, JanusGraph.
 
-Graph is best when your primary workload is: graph databases are specialized for workloads where relationships between entities are as important as the entities themselves.
+Graph databases are specialized for workloads where relationships between entities are as important as the entities themselves. They excel at queries that would require expensive recursive joins in relational databases.
 
-They:
-- Excel at queries that would require expensive recursive joins in relational databases
+- **Deep relationship traversals**: queries like "find all friends of friends of friends who live in San Francisco" require traversing multiple levels of relationships. In a relational database, this requires recursive queries or multiple self-joins, which are expensive and complex. Graph databases store relationships as first-class citizens (edges) with direct pointers between nodes, making traversals efficient. A traversal from node to adjacent node is an O(1) pointer dereference rather than a join operation, making graph databases orders of magnitude faster for deep traversals.
 
-- Deep relationship traversals: queries like "find all friends of friends of friends who live in San Francisco" require traversing multiple levels of relationships.
+- **Variable-length path queries**: many real-world queries have variable depth—find the shortest path between two nodes, find all nodes within N hops, find cycles in the graph. Relational databases struggle with these queries because they require dynamic SQL generation or recursive CTEs with unpredictable performance. Graph databases have built-in traversal algorithms (BFS, DFS, shortest path) optimized for these patterns. Cypher (Neo4j's query language) and Gremlin provide natural syntax for expressing path queries.
 
-  In a relational database:
-  - This requires recursive queries or multiple self-joins, which are expensive and complex
-
-  Graph databases:
-  - Store relationships as first-class citizens (edges) with direct pointers between nodes, making traversals efficient
-  - A traversal from node to adjacent node is an O(1) pointer dereference rather than a join operation
-
-  This:
-  - Makes graph databases orders of magnitude faster for deep traversals
-
-- Variable-length path queries: many real-world queries have variable depth—find the shortest path between two nodes, find all nodes within N hops, find cycles in the graph.
-
-  Relational databases:
-  - Struggle with these queries because they require dynamic SQL generation or recursive CTEs with unpredictable performance
-
-  Graph databases:
-  - Have built-in traversal algorithms (BFS, DFS, shortest path) optimized for these patterns
-  - Cypher (Neo4j's query language) and Gremlin provide natural syntax for expressing path queries
-
-- Recommendations, social graphs, network topology: these domains are inherently graph-structured.
-
-  Social networks:
-  - Friends, followers
-
-  Recommendation engines:
-  - Users, products, purchases
-
-  Fraud detection:
-  - Accounts, transactions, relationships
-
-  Network management:
-  - Routers, links, paths
-
-  All involve complex relationship patterns. Graph databases:
-  - Model these domains naturally without the impedance mismatch of mapping graphs to tables
-  - The ability to efficiently traverse relationships enables powerful queries like "recommend products purchased by people who purchased what you purchased" or "detect circular money laundering patterns"
+- **Recommendations, social graphs, network topology**: these domains are inherently graph-structured. Social networks involve friends and followers. Recommendation engines connect users, products, and purchases. Fraud detection tracks accounts, transactions, and relationships. Network management monitors routers, links, and paths. All involve complex relationship patterns. Graph databases model these domains naturally without the impedance mismatch of mapping graphs to tables. The ability to efficiently traverse relationships enables powerful queries like "recommend products purchased by people who purchased what you purchased" or "detect circular money laundering patterns".
 
 Internals: graph databases use storage structures optimized for relationship traversals, which is fundamentally different from the row-based storage of relational databases.
 
-- Storage is optimized to follow pointers from node -> edges -> adjacent nodes: in a graph database, each node stores direct references (pointers) to its adjacent edges, and each edge stores references to its source and target nodes.
+- **Storage is optimized to follow pointers from node -> edges -> adjacent nodes**: in a graph database, each node stores direct references (pointers) to its adjacent edges, and each edge stores references to its source and target nodes. This means traversing from a node to its neighbors is a simple pointer dereference operation, not a join. The storage layout physically co-locates related nodes and edges when possible, reducing disk seeks during traversals. Some graph databases use native graph storage (Neo4j), while others layer graph capabilities on top of other storage engines (JanusGraph on top of Cassandra/HBase). The key principle is that relationships are stored as first-class objects with direct pointers, not as foreign keys that require lookups.
 
-  This:
-  - Means traversing from a node to its neighbors is a simple pointer dereference operation, not a join
-  - The storage layout physically co-locates related nodes and edges when possible, reducing disk seeks during traversals
-
-  Some graph databases:
-  - Use native graph storage (Neo4j), while others layer graph capabilities on top of other storage engines (JanusGraph on top of Cassandra/HBase)
-
-  The key principle:
-  - Relationships are stored as first-class objects with direct pointers, not as foreign keys that require lookups
-
-- Index-free adjacency is a common idea (fast traversals): index-free adjacency means that the database can navigate from node to node without using indexes to find relationships.
-
-  Instead of maintaining a global index on relationships:
-  - Each node maintains a list of its adjacent relationships
-
-  This:
-  - Eliminates the index lookup overhead during traversals
-  - When you traverse from node A to node B, the database follows the direct pointer stored in node A's adjacency list, not an index lookup
-  - This makes traversals O(1) per hop regardless of graph size
-
-  The tradeoff:
-  - Index-free adjacency requires more memory (each node stores references to all its relationships)
-  - And can make some operations (like finding all nodes with a specific property) slower, requiring full scans or property indexes
+- **Index-free adjacency is a common idea (fast traversals)**: index-free adjacency means that the database can navigate from node to node without using indexes to find relationships. Instead of maintaining a global index on relationships, each node maintains a list of its adjacent relationships. This eliminates the index lookup overhead during traversals. When you traverse from node A to node B, the database follows the direct pointer stored in node A's adjacency list, not an index lookup. This makes traversals O(1) per hop regardless of graph size. The tradeoff is that index-free adjacency requires more memory (each node stores references to all its relationships) and can make some operations (like finding all nodes with a specific property) slower, requiring full scans or property indexes.
 
 Tradeoffs:
 
-- Great for traversals: graph databases excel at relationship-heavy workloads.
+- **Great for traversals**: graph databases excel at relationship-heavy workloads. Queries that involve navigating complex relationship patterns include social network analysis, recommendation engines, fraud detection, and dependency analysis.
 
-  Queries that involve navigating complex relationship patterns:
-  - Social network analysis
-  - Recommendation engines
-  - Fraud detection
-  - Dependency analysis
+  These are dramatically faster in graph databases than in relational databases. The pointer-based traversal model enables performance that scales with the depth of traversal rather than the size of the dataset. For these use cases, graph databases are often the only practical solution at scale.
 
-  These are dramatically faster in graph databases than in relational databases. The pointer-based traversal model:
-  - Enables performance that scales with the depth of traversal rather than the size of the dataset
+- **Less ideal for high-throughput OLTP aggregates and simple key-based lookups at massive scale**: graph databases are specialized tools. If your primary workload is:
+  simple CRUD operations, aggregations on large datasets, or key-value lookups, a relational database or key-value store will likely perform better and be simpler to operate. Graph databases typically have higher overhead per operation than simpler databases because they maintain complex graph structures and index-free adjacency lists. They also often have weaker horizontal scaling characteristics than key-value or wide-column stores.
 
-  For these use cases:
-  - Graph databases are often the only practical solution at scale
-
-- Less ideal for high-throughput OLTP aggregates and simple key-based lookups at massive scale: graph databases are specialized tools.
-
-  If your primary workload is:
-  - Simple CRUD operations
-  - Aggregations on large datasets
-  - Key-value lookups
-
-  A relational database or key-value store:
-  - Will likely perform better and be simpler to operate
-
-  Graph databases:
-  - Typically have higher overhead per operation than simpler databases because they maintain complex graph structures and index-free adjacency lists
-  - They also often have weaker horizontal scaling characteristics than key-value or wide-column stores
-
-  The rule of thumb:
-  - Use a graph database when relationships are the primary complexity in your workload; otherwise, use a more general-purpose database
+  The rule of thumb is to use a graph database when relationships are the primary complexity in your workload; otherwise, use a more general-purpose database.
 
 ---
 
@@ -2098,80 +1724,18 @@ Examples: Elasticsearch/OpenSearch, Solr.
 
 Internals: search engines are built on inverted indexes, a data structure optimized for full-text search that's fundamentally different from the B-Tree indexes used in relational databases.
 
-- Inverted index maps terms -> documents: an inverted index is conceptually similar to the index at the back of a book—for each term (word), it stores a list of documents containing that term.
+- **Inverted index maps terms -> documents**: an inverted index is conceptually similar to the index at the back of a book—for each term (word), it stores a list of documents containing that term. When you search for "database", the index immediately returns all documents containing that word without scanning the documents themselves. The index also stores position information (where in the document the term appears), enabling phrase queries ("database design") and proximity searches (terms within N words of each other). This structure enables fast full-text search but requires significant storage overhead—the index can be larger than the documents themselves.
 
-  When you search for "database":
-  - The index immediately returns all documents containing that word without scanning the documents themselves
-
-  The index also:
-  - Stores position information (where in the document the term appears), enabling phrase queries ("database design") and proximity searches (terms within N words of each other)
-
-  This structure:
-  - Enables fast full-text search but requires significant storage overhead—the index can be larger than the documents themselves
-
-- Tokenization, analyzers, scoring models (BM25): before indexing, documents are processed through analyzers that tokenize text into terms, apply normalization (lowercasing, stemming, removing stop words), and handle language-specific rules.
-
-  This processing:
-  - Ensures that variations of words match (e.g., "running", "runs", "ran" might all map to "run")
-
-  Scoring models like BM25:
-  - Rank results by relevance based on term frequency (how often the term appears in the document) and inverse document frequency (how rare the term is across all documents)
-
-  This ranking:
-  - Is crucial for user experience—finding the most relevant documents rather than all matching documents
-
-  Different analyzers and scoring models:
-  - Can be configured per field to optimize for specific use cases
-- Segments, merges, refresh cycles: search engines like Elasticsearch use Lucene under the hood, which organizes indexes into immutable segments.
-
-  When documents are indexed:
-  - They're written to an in-memory buffer
-  - Periodically (based on time or size), this buffer is flushed to disk as a new segment
-
-  Over time:
-  - The number of segments grows, which would slow down searches (more segments to check)
-  - Compaction/merge processes periodically merge smaller segments into larger ones, improving search performance and reclaiming space
-  - This merge process is similar to LSM tree compaction
-
-  Refresh cycles:
-  - Make newly indexed documents searchable—by default, Elasticsearch refreshes every second, making documents visible
-  - This near-real-time behavior is a key characteristic of search engines, distinguishing them from traditional databases with immediate consistency
+- **Tokenization, analyzers, scoring models (BM25)**: before indexing, documents are processed through analyzers that tokenize text into terms, apply normalization (lowercasing, stemming, removing stop words), and handle language-specific rules. This processing ensures that variations of words match (e.g., "running", "runs", "ran" might all map to "run"). Scoring models like BM25 rank results by relevance based on term frequency (how often the term appears in the document) and inverse document frequency (how rare the term is across all documents). This ranking is crucial for user experience—finding the most relevant documents rather than all matching documents. Different analyzers and scoring models can be configured per field to optimize for specific use cases.
+- **Segments, merges, refresh cycles**: search engines like Elasticsearch use Lucene under the hood, which organizes indexes into immutable segments. When documents are indexed, they're written to an in-memory buffer. Periodically (based on time or size), this buffer is flushed to disk as a new segment. Over time, the number of segments grows, which would slow down searches (more segments to check). Compaction/merge processes periodically merge smaller segments into larger ones, improving search performance and reclaiming space. This merge process is similar to LSM tree compaction. Refresh cycles make newly indexed documents searchable—by default, Elasticsearch refreshes every second, making documents visible. This near-real-time behavior is a key characteristic of search engines, distinguishing them from traditional databases with immediate consistency.
 
 Tradeoffs:
 
-- Phenomenal full-text and filtering: search engines provide unmatched capabilities for full-text search, fuzzy matching, faceted navigation, and relevance ranking.
+- **Phenomenal full-text and filtering**: search engines provide unmatched capabilities for full-text search, fuzzy matching, faceted navigation, and relevance ranking. Complex queries that would be difficult or impossible in SQL (like "find documents containing 'database' within 5 words of 'performance' with a relevance score above 0.5") are natural in search engines. They also excel at filtering and aggregations across large datasets, making them popular for log analysis and observability. The combination of full-text search, structured filtering, and aggregations makes search engines versatile for many use cases.
 
-  Complex queries:
-  - That would be difficult or impossible in SQL (like "find documents containing 'database' within 5 words of 'performance' with a relevance score above 0.5") are natural in search engines
+- **Not a primary source of truth unless carefully managed**: search engines are eventually consistent by design—indexing is asynchronous, and there's no guarantee that the search index matches the primary data source at any given moment. Search engines can lose documents during failures, and they don't provide ACID transaction guarantees. For these reasons, they're typically used as secondary indexes alongside a primary database (like PostgreSQL or MySQL). The application writes to the primary database and then asynchronously updates the search index. This pattern requires careful handling of failures and consistency—what happens if the write to the primary succeeds but the index update fails? The application must implement reconciliation logic or accept temporary inconsistency.
 
-  They also:
-  - Excel at filtering and aggregations across large datasets, making them popular for log analysis and observability
-
-  The combination:
-  - Of full-text search, structured filtering, and aggregations makes search engines versatile for many use cases
-
-- Not a primary source of truth unless carefully managed: search engines are eventually consistent by design—indexing is asynchronous, and there's no guarantee that the search index matches the primary data source at any given moment.
-
-  Search engines:
-  - Can lose documents during failures, and they don't provide ACID transaction guarantees
-
-  For these reasons:
-  - They're typically used as secondary indexes alongside a primary database (like PostgreSQL or MySQL)
-  - The application writes to the primary database and then asynchronously updates the search index
-
-  This pattern:
-  - Requires careful handling of failures and consistency—what happens if the write to the primary succeeds but the index update fails?
-  - The application must implement reconciliation logic or accept temporary inconsistency
-
-- Near-real-time semantics: search engines provide near-real-time visibility for newly indexed data (typically 1-2 second delay in Elasticsearch).
-
-  This:
-  - Is sufficient for most use cases but not for systems that require immediate consistency
-
-  The refresh interval:
-  - Is tunable—more frequent refreshes increase visibility but add performance overhead
-
-  This near-real-time model:
+- **Near-real-time semantics**: search engines provide near-real-time visibility for newly indexed data (typically 1-2 second delay in Elasticsearch). This is sufficient for most use cases but not for systems that require immediate consistency. The refresh interval is tunable—more frequent refreshes increase visibility but add performance overhead. This near-real-time model
   - Is a tradeoff that enables high write throughput while keeping search performance acceptable
 
   Applications:
@@ -2183,108 +1747,31 @@ Tradeoffs:
 
 Examples: InfluxDB, TimescaleDB (Postgres extension), Prometheus TSDB.
 
-Time-series is optimized for: time-series databases are specialized for data indexed by time, such as metrics, events, and sensor readings.
+Time-series databases are specialized for data indexed by time, such as metrics, events, and sensor readings. The temporal nature of this data enables optimizations that general-purpose databases cannot provide.
 
-The temporal nature of this data:
-- Enables optimizations that general-purpose databases cannot provide
+- **High ingest rates**: time-series workloads are typically write-heavy—thousands or millions of data points per second from sensors, applications, or infrastructure. Time-series databases optimize for high write throughput using techniques like batch writes, append-only storage, and write-optimized data structures. Unlike relational databases where each write might require updating multiple indexes, time-series databases often have a simple primary key (timestamp + tags) that enables efficient batching. This optimization allows them to handle ingestion rates that would overwhelm general-purpose databases.
 
-- High ingest rates: time-series workloads are typically write-heavy—thousands or millions of data points per second from sensors, applications, or infrastructure.
+- **Time-window queries**: the most common query pattern in time-series data is retrieving data within a time range (e.g., "CPU usage for server X in the last hour"). Time-series databases optimize for this by physically organizing data by time and using time-based partitioning. A query for a time range becomes a sequential read of contiguous time-partitioned files, which is much faster than random I/O. Range scans by time are efficient because data is stored in chronological order. Some databases also use time-based indexes or specialized data structures (like Gorilla compression for floating-point time series) to accelerate time-window queries.
 
-  Time-series databases:
-  - Optimize for high write throughput using techniques like batch writes, append-only storage, and write-optimized data structures
-
-  Unlike relational databases:
-  - Where each write might require updating multiple indexes, time-series databases often have a simple primary key (timestamp + tags) that enables efficient batching
-
-  This optimization:
-  - Allows them to handle ingestion rates that would overwhelm general-purpose databases
-
-- Time-window queries: the most common query pattern in time-series data is retrieving data within a time range (e.g., "CPU usage for server X in the last hour").
-
-  Time-series databases:
-  - Optimize for this by physically organizing data by time and using time-based partitioning
-  - A query for a time range becomes a sequential read of contiguous time-partitioned files, which is much faster than random I/O
-  - Range scans by time are efficient because data is stored in chronological order
-
-  Some databases:
-  - Also use time-based indexes or specialized data structures (like Gorilla compression for floating-point time series) to accelerate time-window queries
-
-- Downsampling and retention policies: time-series data often follows a hierarchy of detail—recent data is needed at high resolution, while older data can be downsampled to lower resolution.
-
-  Time-series databases:
-  - Provide built-in mechanisms for automatic downsampling (aggregating raw data into averages, minimums, maximums over time windows) and retention (deleting old data)
-
-  For example:
-  - You might keep raw data for 7 days, 5-minute averages for 90 days, and hourly averages for 1 year
-
-  These policies:
-  - Are configured once and applied automatically, reducing operational complexity compared to implementing this logic in application code
+- **Downsampling and retention policies**: time-series data often follows a hierarchy of detail—recent data is needed at high resolution, while older data can be downsampled to lower resolution. Time-series databases provide built-in mechanisms for automatic downsampling (aggregating raw data into averages, minimums, maximums over time windows) and retention (deleting old data). For example, you might keep raw data for 7 days, 5-minute averages for 90 days, and hourly averages for 1 year. These policies are configured once and applied automatically, reducing operational complexity compared to implementing this logic in application code.
 
 Internals vary: different time-series databases use different approaches, but they share common optimization strategies for temporal data.
 
-- Columnar compression: time-series data often has repetitive patterns—metric values change slowly, and many timestamps share the same tags (like host, region, service).
+- **Columnar compression**: time-series data often has repetitive patterns—metric values change slowly, and many timestamps share the same tags (like host, region, service). Columnar storage stores each column separately, enabling compression algorithms that exploit these patterns. For example, Gorilla compression (developed by Facebook for Prometheus monitoring) achieves 10x compression for floating-point time series by encoding deltas between successive values rather than storing raw values. Dictionary encoding compresses tag values by mapping repeated strings to integers. This columnar approach also enables efficient queries that only read the columns they need, skipping irrelevant data.
 
-  Columnar storage:
-  - Stores each column separately, enabling compression algorithms that exploit these patterns
+- **Time-partitioned chunks**: time-series databases typically partition data into time-based chunks (e.g., one chunk per hour or day). Each chunk contains all data for that time period. This design enables efficient time-range queries—the database can quickly identify which chunks overlap with the query range and read only those chunks. Old chunks can be dropped entirely for retention without scanning individual records. Time partitioning also simplifies downsampling—when a chunk ages out, it can be aggregated into a lower-resolution chunk. This chunking strategy is similar to how wide-column stores partition by partition key, but optimized specifically for time ranges.
 
-  For example:
-  - Gorilla compression (developed by Facebook for Prometheus monitoring) achieves 10x compression for floating-point time series by encoding deltas between successive values rather than storing raw values
-  - Dictionary encoding compresses tag values by mapping repeated strings to integers
-
-  This columnar approach:
-  - Also enables efficient queries that only read the columns they need, skipping irrelevant data
-
-- Time-partitioned chunks: time-series databases typically partition data into time-based chunks (e.g., one chunk per hour or day).
-
-  Each chunk:
-  - Contains all data for that time period
-
-  This design:
-  - Enables efficient time-range queries—the database can quickly identify which chunks overlap with the query range and read only those chunks
-  - Old chunks can be dropped entirely for retention without scanning individual records
-  - Time partitioning also simplifies downsampling—when a chunk ages out, it can be aggregated into a lower-resolution chunk
-
-  This chunking strategy:
-  - Is similar to how wide-column stores partition by partition key, but optimized specifically for time ranges
-
-- Write-optimized logs: many time-series databases use append-only write patterns similar to LSM trees.
-
-  New data points:
-  - Are always appended, never updated in place (except for corrections)
-
-  This append-only pattern:
-  - Enables sequential writes, which are much faster than random writes
-  - Some databases use write-ahead logs or in-memory buffers that periodically flush to disk
-  - The immutable nature of time-series data (once written, timestamps don't change) makes this append-only approach natural
-
-  This design:
-  - Trades some read efficiency (may need to merge multiple sources) for superior write performance
+- **Write-optimized logs**: many time-series databases use append-only write patterns similar to LSM trees. New data points are always appended, never updated in place (except for corrections). This append-only pattern enables sequential writes, which are much faster than random writes. Some databases use write-ahead logs or in-memory buffers that periodically flush to disk. The immutable nature of time-series data (once written, timestamps don't change) makes this append-only approach natural. This design trades some read efficiency (may need to merge multiple sources) for superior write performance.
 
 Tradeoffs:
 
-- Excellent for metrics/events: time-series databases provide superior performance and storage efficiency for their target workloads.
+- **Excellent for metrics/events**: time-series databases provide superior performance and storage efficiency for their target workloads. The combination of high ingest rates, efficient time-range queries, built-in downsampling, and automatic retention makes them ideal for monitoring, IoT, observability, and any application dealing with timestamped data. The specialized data model and optimizations enable capabilities that would be difficult or expensive to implement on top of a general-purpose database.
 
-  The combination:
-  - Of high ingest rates, efficient time-range queries, built-in downsampling, and automatic retention makes them ideal for monitoring, IoT, observability, and any application dealing with timestamped data
+  For these use cases, time-series databases are often the best choice.
 
-  The specialized data model and optimizations:
-  - Enable capabilities that would be difficult or expensive to implement on top of a general-purpose database
+- **Not a general-purpose OLTP store**: time-series databases are specialized tools with significant limitations outside their domain. They typically don't support complex transactions, joins, or ad-hoc queries well. The data model is rigid—everything must be indexed by time, which doesn't fit all use cases. Updating or deleting historical data is often difficult or inefficient.
 
-  For these use cases:
-  - Time-series databases are often the best choice
-
-- Not a general-purpose OLTP store: time-series databases are specialized tools with significant limitations outside their domain.
-
-  They typically:
-  - Don't support complex transactions, joins, or ad-hoc queries well
-  - The data model is rigid—everything must be indexed by time, which doesn't fit all use cases
-  - Updating or deleting historical data is often difficult or inefficient
-
-  If your application needs:
-  - General-purpose CRUD operations, complex relationships, or flexible querying, a relational database or document store will be more appropriate
-
-  Time-series databases:
-  - Are best used as a specialized component alongside a primary database, not as a general-purpose data store
+  If your application needs general-purpose CRUD operations, complex relationships, or flexible querying, a relational database or document store will be more appropriate. Time-series databases are best used as a specialized component alongside a primary database, not as a general-purpose data store.
 
 ---
 
@@ -2293,57 +1780,44 @@ Tradeoffs:
 Many NoSQL systems (and some SQL ones) use **Log-Structured Merge Trees (LSM)**.
 
 #### Why LSM exists
-B-Trees are great for reads and range scans, but random writes can be expensive.
+B-Trees are great for reads and range scans, but random writes can be expensive. When you update a B-Tree, you must locate the specific page containing the key, read it, modify it, and write it back. If the page doesn't fit, it splits, causing additional writes. On HDDs, random writes require disk seeks (5-10ms each), making them orders of magnitude slower than sequential writes. Even on SSDs, random writes cause wear and have lower throughput than sequential writes. For write-heavy workloads like time-series data, logging, or event streaming, this random write overhead becomes a bottleneck.
 
-When you update a B-Tree:
-- You must locate the specific page containing the key, read it, modify it, and write it back
-- If the page doesn't fit, it splits, causing additional writes
+LSM turns random writes into sequential writes: Log-Structured Merge trees solve this by making all writes sequential. Instead of modifying existing data in place, LSM trees always append new data. This eliminates random I/O for writes, dramatically improving write throughput.
 
-On HDDs:
-- Random writes require disk seeks (5-10ms each), making them orders of magnitude slower than sequential writes
+- **Writes go to an in-memory structure (memtable)**: when a write arrives, it's added to an in-memory sorted structure (typically a skip list or red-black tree). This in-memory write is fast—no disk I/O required. The memtable maintains data in sorted order, which enables efficient range queries even before data is flushed to disk. When the memtable reaches a size threshold, it's frozen and a new memtable is created for incoming writes.
 
-Even on SSDs:
-- Random writes cause wear and have lower throughput than sequential writes
+- **Flushed to disk as immutable sorted files (SSTables)**: the frozen memtable is written to disk as an SSTable (Sorted String Table)—an immutable file containing sorted key-value pairs. Because the data is already sorted in memory, flushing is a sequential write operation. SSTables are immutable—once written, they're never modified. This immutability simplifies concurrency (no locks needed for reading) and crash recovery (no need to undo partial writes). Old versions of data remain in older SSTables until cleaned up by compaction.
 
-For write-heavy workloads like time-series data, logging, or event streaming:
-- This random write overhead becomes a bottleneck
-
-LSM turns random writes into sequential writes: Log-Structured Merge trees solve this by making all writes sequential.
-
-Instead of modifying existing data in place:
-- LSM trees always append new data
-
-This:
-- Eliminates random I/O for writes, dramatically improving write throughput
-
-- Writes go to an in-memory structure (memtable): when a write arrives, it's added to an in-memory sorted structure (typically a skip list or red-black tree).
-
-  This in-memory write:
-  - Is fast—no disk I/O required
-  - The memtable maintains data in sorted order, which enables efficient range queries even before data is flushed to disk
-  - When the memtable reaches a size threshold, it's frozen and a new memtable is created for incoming writes
-
-- Flushed to disk as immutable sorted files (SSTables): the frozen memtable is written to disk as an SSTable (Sorted String Table)—an immutable file containing sorted key-value pairs.
-
-  Because the data is already sorted in memory:
-  - Flushing is a sequential write operation
-
-  SSTables:
-  - Are immutable—once written, they're never modified
-  - This immutability simplifies concurrency (no locks needed for reading) and crash recovery (no need to undo partial writes)
-  - Old versions of data remain in older SSTables until cleaned up by compaction
-
-- Background **compaction** merges files to keep read performance reasonable: as more SSTables accumulate, reads must check multiple files to find the latest value for a key.
-
-  Compaction:
-  - Merges multiple SSTables into fewer, larger files, removing overwritten data and combining versions
-  - This is similar to the merge phase of merge sort
-  - Compaction improves read performance (fewer files to check) and reclaims space (removing old versions)
-
-  The compaction strategy (size-tiered vs. leveled):
-  - Is a key tuning parameter that affects write amplification and read performance
+- **Background compaction merges files to keep read performance reasonable**: as more SSTables accumulate, reads must check multiple files to find the latest value for a key. Compaction merges multiple SSTables into fewer, larger files, removing overwritten data and combining versions. This is similar to the merge phase of merge sort. Compaction improves read performance (fewer files to check) and reclaims space (removing old versions). The compaction strategy (size-tiered vs. leveled) is a key tuning parameter that affects write amplification and read performance.
 
 Key internal components: LSM trees consist of several cooperating components that work together to provide the write-optimized storage model.
+
+```mermaid
+graph LR
+    subgraph "Write Path"
+        W[Write Request] --> Mem[Memtable]
+        Mem -->|Flush| SST1[SSTable L0]
+        SST1 -->|Compaction| SST2[SSTable L1]
+        SST2 -->|Compaction| SST3[SSTable L2]
+    end
+    
+    subgraph "Read Path"
+        R[Read Request] --> Mem
+        R --> SST1
+        R --> SST2
+        R --> SST3
+        BF[Bloom Filters] -.-> SST1
+        BF -.-> SST2
+        BF -.-> SST3
+    end
+    
+    style Mem fill:#9f9,stroke:#333
+    style SST1 fill:#fb9,stroke:#333
+    style SST2 fill:#fb9,stroke:#333
+    style SST3 fill:#fb9,stroke:#333
+```
+
+This diagram shows the LSM tree architecture where writes go to the memtable first, then flush to immutable SSTables, while reads must check multiple levels and use bloom filters to avoid unnecessary disk I/O.
 
 - **Memtable**: in-memory sorted map - the memtable is the write buffer where all incoming writes are first stored.
 
@@ -2560,6 +2034,36 @@ Meaning:
 
   The PACELC framework:
   - Makes explicit that the consistency-latency tradeoff exists even in normal operation, not just during partitions
+
+```mermaid
+graph TB
+    subgraph "CAP Theorem"
+        CAP{Network Partition?}
+        C[Consistency<br/>Reject writes/reads<br/>CP Systems]
+        A[Availability<br/>Accept all requests<br/>AP Systems]
+        CAP -->|Yes| C
+        CAP -->|Yes| A
+    end
+    
+    subgraph "PACELC Extension"
+        P{Partition?}
+        PE[Else: Normal Operation]
+        L[Low Latency<br/>Weak consistency]
+        CS[Strong Consistency<br/>High latency]
+        P -->|Yes| C
+        P -->|Yes| A
+        P -->|No| PE
+        PE --> L
+        PE --> CS
+    end
+    
+    style C fill:#f99,stroke:#333
+    style A fill:#9f9,stroke:#333
+    style L fill:#99f,stroke:#333
+    style CS fill:#f99,stroke:#333
+```
+
+This diagram illustrates the CAP theorem's binary choice during partitions and PACELC's extension showing the consistency-latency tradeoff during normal operation.
 
 ### Consistency models you should know
 Consistency models define the guarantees a system provides about when and how writes become visible to reads.
@@ -2850,6 +2354,38 @@ If you need strong invariants (e.g., balances never go negative): enforcing such
   - Complexity increases the risk of bugs and makes the application harder to reason about
   - The general guidance is: if strong invariants are critical, SQL is often the better choice
 
+```mermaid
+graph TB
+    subgraph "SQL: Normalized Model"
+        Users[Users Table<br/>id, name, email]
+        Orders[Orders Table<br/>id, user_id, date]
+        Items[Items Table<br/>id, order_id, product]
+        
+        Users -->|1:N| Orders
+        Orders -->|1:N| Items
+    end
+    
+    subgraph "NoSQL: Denormalized Model"
+        UserDoc["User Document<br/>(id, name, email,<br/>  orders: [<br/>    (id, date, items: [...])<br/>  ])"]
+    end
+    
+    QuerySQL[Query: JOIN across tables]
+    QueryNoSQL[Query: Single document fetch]
+    
+    Users --> QuerySQL
+    Orders --> QuerySQL
+    Items --> QuerySQL
+    
+    UserDoc --> QueryNoSQL
+    
+    style Users fill:#bbf,stroke:#333
+    style Orders fill:#bbf,stroke:#333
+    style Items fill:#bbf,stroke:#333
+    style UserDoc fill:#fb9,stroke:#333
+```
+
+This comparison shows the fundamental difference between SQL's normalized approach (requiring joins) and NoSQL's denormalized approach (single-document reads).
+
 ---
 
 ## Operational Tradeoffs
@@ -3003,6 +2539,47 @@ Deploying databases across multiple geographic regions introduces fundamental tr
 ## Decision Framework: How to Choose
 
 Use these questions in order.
+
+```mermaid
+flowchart TD
+    Start[Need to choose database?] --> Q1{Need strict<br/>multi-row<br/>invariants?}
+    
+    Q1 -->|Yes| SQL[Start with SQL]
+    Q1 -->|No| Q2{Queries ad-hoc<br/>and evolving?}
+    
+    Q2 -->|Yes| SQL
+    Q2 -->|No| Q3{Extremely<br/>write-heavy<br/>+ distributed?}
+    
+    Q3 -->|Yes| Q3a{Simple access<br/>patterns?}
+    Q3 -->|No| SQL
+    
+    Q3a -->|Yes| NoSQL[Consider NoSQL<br/>LSM/KV stores]
+    Q3a -->|No| SQL
+    
+    SQL --> Q4{Need high availability<br/>during partitions?}
+    NoSQL --> Q4
+    
+    Q4 -->|Yes| AP[AP-style<br/>eventual consistency]
+    Q4 -->|No| CP[CP-style<br/>strong consistency]
+    
+    AP --> Q5{Can model as<br/>aggregates?}
+    CP --> Q5
+    
+    Q5 -->|Yes| Doc[Document/KV stores]
+    Q5 -->|No| Final{Team operational<br/>maturity?}
+    
+    Doc --> Final
+    Final -->|High| DistSQL[Distributed SQL]
+    Final -->|Low| SimpleSQL[Single-node SQL]
+    
+    style SQL fill:#bbf,stroke:#333
+    style NoSQL fill:#fb9,stroke:#333
+    style AP fill:#9f9,stroke:#333
+    style CP fill:#f99,stroke:#333
+    style Doc fill:#fbf,stroke:#333
+```
+
+This decision flowchart guides you through the key questions for choosing between SQL and NoSQL databases, with branches for specific scenarios and considerations for team maturity and operational complexity.
 
 ### 1) Do you need strict multi-row invariants?
 If yes, start with SQL. The ability to enforce invariants across multiple rows or tables through ACID transactions and declarative constraints is SQL's strongest advantage. These invariants are critical for data integrity in many domains.
