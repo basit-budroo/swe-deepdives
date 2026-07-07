@@ -50,6 +50,9 @@ Comprehensive comparison of relational and non-relational databases, including i
 ### [Two-Phase Commit](deepdives/system-design/two-phase-commit/)
 Distributed transaction protocols, 2PC implementation, and alternatives for distributed consistency.
 
+### [Chat Application](deepdives/system-design/chat-application/)
+Comprehensive system design for a WhatsApp-scale chat application, covering protocol selection, architecture patterns, database design, security, scalability, and WhatsApp-specific architectural insights.
+
 ---
 
 ## Contributing
