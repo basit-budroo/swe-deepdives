@@ -12,6 +12,12 @@ A collection of in-depth technical deep dives covering software engineering fund
 
 ## Computer Science
 
+### [Database Indexes](deepdives/computer-science/database-indexes/)
+Understanding database indexing strategies, B-trees, query optimization, and index selection.
+
+### [DSA Patterns](deepdives/computer-science/dsa-patterns/)
+Common data structures and algorithms patterns for technical interviews and problem-solving.
+
 ### [Networking Fundamentals](deepdives/computer-science/networking_fundamentals/)
 Core networking concepts including TCP/IP, HTTP, DNS, and network protocols.
 
