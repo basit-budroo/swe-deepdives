@@ -18,7 +18,7 @@ Understanding database indexing strategies, B-trees, query optimization, and ind
 ### [DSA Patterns](deepdives/computer-science/dsa-patterns/)
 Common data structures and algorithms patterns for technical interviews and problem-solving.
 
-### [Networking Fundamentals](deepdives/computer-science/networking_fundamentals/)
+### [Networking Fundamentals](deepdives/computer-science/networking-fundamentals/)
 Core networking concepts including TCP/IP, HTTP, DNS, and network protocols.
 
 ---

@@ -35,56 +35,63 @@ Fast-revision guide covering the most important DSA topics and LeetCode patterns
 29. [Top-K / K-way Merge](#29-top-k--k-way-merge)
 30. [String Algorithms](#30-string-algorithms)
 31. [Design Problems](#31-design-problems)
-32. [Recurrence Relations & Simulation Problems](#32-recurrence-relations--simulation-problems)
-33. [Segment Tree / Fenwick Tree (Range Queries)](#33-segment-tree--fenwick-tree-range-queries)
-34. [Sweep Line Algorithm](#34-sweep-line-algorithm)
-35. [Advanced Graph Algorithms (SCC, Bridges, Articulation Points)](#35-advanced-graph-algorithms-scc-bridges-articulation-points)
-36. [Math Essentials (GCD, Sieve, Fast Exponentiation)](#36-math-essentials-gcd-sieve-fast-exponentiation)
-37. [Game Theory / Minimax DP](#37-game-theory--minimax-dp)
-38. [Complexity Cheatsheet](#38-complexity-cheatsheet)
+32. [Data Structure Design (Fundamental Implementations)](#32-data-structure-design-fundamental-implementations)
+33. [Recurrence Relations & Simulation Problems](#33-recurrence-relations--simulation-problems)
+34. [Segment Tree / Fenwick Tree (Range Queries)](#34-segment-tree--fenwick-tree-range-queries)
+35. [Sweep Line Algorithm](#35-sweep-line-algorithm)
+36. [Advanced Graph Algorithms (SCC, Bridges, Articulation Points)](#36-advanced-graph-algorithms-scc-bridges-articulation-points)
+37. [Math Essentials (GCD, Sieve, Fast Exponentiation)](#37-math-essentials-gcd-sieve-fast-exponentiation)
+38. [Game Theory / Minimax DP](#38-game-theory--minimax-dp)
+39. [Complexity Cheatsheet](#39-complexity-cheatsheet)
 
 ### Problem Count Breakup
 
-| # | Section | Problems |
-|----:|----|----:|
-| 1 | Arrays & Strings | 16 |
-| 2 | Two Pointers | 6 |
-| 3 | Sliding Window | 6 |
-| 4 | Prefix Sum / Difference Array | 4 |
-| 5 | Binary Search | 7 |
-| 6 | Kadane's Algorithm (Max Subarray) | 4 |
-| 7 | Sorting-based Patterns | 5 |
-| 8 | Linked List | 7 |
-| 9 | Stack | 7 |
-| 10 | Monotonic Stack | 6 |
-| 11 | Queue & Deque | 5 |
-| 12 | Monotonic Deque (Sliding Window Max/Min) | 3 |
-| 13 | Hashing (HashMap/HashSet) | 6 |
-| 14 | Trees (Binary Tree / BST) | 10 |
-| 15 | Tries | 5 |
-| 16 | Heaps / Priority Queue | 6 |
-| 17 | Graphs — BFS / DFS | 8 |
-| 18 | Union-Find (Disjoint Set) | 6 |
-| 19 | Topological Sort | 5 |
-| 20 | Shortest Path Algorithms | 4 |
-| 21 | Minimum Spanning Tree | 3 |
-| 22 | Backtracking | 8 |
-| 23 | Dynamic Programming | 22 |
-| 24 | Greedy | 7 |
-| 25 | Bit Manipulation | 6 |
-| 26 | Intervals | 6 |
-| 27 | Matrix Patterns | 7 |
-| 28 | Fast & Slow Pointers (Cycle Detection) | 5 |
-| 29 | Top-K / K-way Merge | 4 |
-| 30 | String Algorithms | 7 |
-| 31 | Design Problems | 7 |
-| 32 | Recurrence Relations & Simulation Problems | 7 |
-| 33 | Segment Tree / Fenwick Tree (Range Queries) | 5 |
-| 34 | Sweep Line Algorithm | 6 |
-| 35 | Advanced Graph Algorithms (SCC, Bridges, Articulation Points) | 4 |
-| 36 | Math Essentials (GCD, Sieve, Fast Exponentiation) | 7 |
-| 37 | Game Theory / Minimax DP | 6 |
-| **Total** | | **243** |
+| # | Section | Problems | Category | Priority | Prerequisites |
+|----:|----|----:|----|----|----|
+| 1 | Arrays & Strings | 16 | Core | High | - |
+| 2 | Two Pointers | 6 | Core | High | Arrays & Strings |
+| 3 | Sliding Window | 6 | Core | High | Two Pointers |
+| 4 | Prefix Sum / Difference Array | 4 | Core | Medium | Arrays |
+| 5 | Binary Search | 7 | Core | High | Arrays |
+| 6 | Kadane's Algorithm (Max Subarray) | 4 | Core | High | Arrays |
+| 7 | Sorting-based Patterns | 5 | Core | Medium | Arrays, Sorting |
+| 8 | Linked List | 9 | Core | High | Pointers |
+| 9 | Stack | 8 | Core | High | Arrays |
+| 10 | Monotonic Stack | 8 | Advanced | High | Stack |
+| 11 | Queue & Deque | 5 | Core | Medium | Arrays |
+| 12 | Monotonic Deque (Sliding Window Max/Min) | 3 | Advanced | Medium | Deque, Sliding Window |
+| 13 | Hashing (HashMap/HashSet) | 6 | Core | High | Arrays |
+| 14 | Trees (Binary Tree / BST) | 14 | Core | High | Recursion |
+| 15 | Tries | 5 | Advanced | Medium | Trees |
+| 16 | Heaps / Priority Queue | 7 | Core | High | Arrays |
+| 17 | Graphs — BFS / DFS | 10 | Core | High | Trees, Hashing |
+| 18 | Union-Find (Disjoint Set) | 6 | Advanced | Medium | Graphs |
+| 19 | Topological Sort | 5 | Advanced | High | Graphs, DFS |
+| 20 | Shortest Path Algorithms | 4 | Advanced | Medium | Graphs, Heaps |
+| 21 | Minimum Spanning Tree | 3 | Advanced | Low | Graphs |
+| 22 | Backtracking | 8 | Advanced | High | Recursion |
+| 23 | Dynamic Programming | 26 | Expert | High | Recursion, Arrays |
+| 24 | Greedy | 7 | Advanced | Medium | Sorting |
+| 25 | Bit Manipulation | 6 | Core | Medium | - |
+| 26 | Intervals | 6 | Core | High | Sorting |
+| 27 | Matrix Patterns | 7 | Core | Medium | Arrays, DFS |
+| 28 | Fast & Slow Pointers (Cycle Detection) | 5 | Core | High | Linked List |
+| 29 | Top-K / K-way Merge | 4 | Advanced | Medium | Heaps |
+| 30 | String Algorithms | 9 | Advanced | Medium | Arrays, DP |
+| 31 | Design Problems | 9 | Advanced | High | All Core patterns |
+| 32 | Data Structure Design (Fundamental Implementations) | 10 | Core | Medium | Arrays, Pointers |
+| 33 | Recurrence Relations & Simulation Problems | 7 | Advanced | Low | Recursion |
+| 34 | Segment Tree / Fenwick Tree (Range Queries) | 7 | Expert | Low | Trees, Binary Search |
+| 35 | Sweep Line Algorithm | 6 | Advanced | Medium | Sorting, Intervals |
+| 36 | Advanced Graph Algorithms (SCC, Bridges, Articulation Points) | 4 | Expert | Low | Graphs, DFS |
+| 37 | Math Essentials (GCD, Sieve, Fast Exponentiation) | 7 | Advanced | Low | - |
+| 38 | Game Theory / Minimax DP | 6 | Expert | Low | DP |
+| 39 | Complexity Cheatsheet | - | Reference | - | - |
+| **Total** | | **272** | | | |
+
+**Legend:**
+- **Category**: Core (fundamental patterns), Advanced (builds on core), Expert (specialized/complex)
+- **Priority**: High (most frequent in interviews), Medium (moderate frequency), Low (niche/advanced)
 
 ---
 
@@ -968,9 +975,49 @@ boolean isPalindrome(ListNode head) {
     }
     return true;
 }
+
+// Intersection of Two Linked Lists - find the node where two lists intersect
+ListNode getIntersectionNode(ListNode headA, ListNode headB) {
+    if (headA == null || headB == null) return null;
+    ListNode a = headA, b = headB;
+    while (a != b) {
+        a = (a == null) ? headB : a.next;
+        b = (b == null) ? headA : b.next;
+    }
+    return a;
+}
+
+// Sorted List to BST - convert sorted linked list to balanced BST
+TreeNode sortedListToBST(ListNode head) {
+    if (head == null) return null;
+    return toBST(head, null);
+}
+private TreeNode toBST(ListNode head, ListNode tail) {
+    if (head == tail) return null;
+    ListNode slow = head, fast = head;
+    while (fast != tail && fast.next != tail) {
+        slow = slow.next;
+        fast = fast.next.next;
+    }
+    TreeNode root = new TreeNode(slow.val);
+    root.left = toBST(head, slow);
+    root.right = toBST(slow.next, tail);
+    return root;
+}
 ```
 
-**Key problems:** Reverse Linked List (I/II), Merge K Sorted Lists, Add Two Numbers, LRU Cache, Reorder List, Copy List with Random Pointer, Palindrome Linked List.
+**Key problems:** Reverse Linked List (I/II), Merge K Sorted Lists, Add Two Numbers, LRU Cache, Reorder List, Copy List with Random Pointer, Palindrome Linked List, Intersection of Two Linked Lists, Sorted List to BST.
+
+**Common Pitfalls:**
+- Forgetting to handle null checks at list boundaries (head, tail, single node)
+- In reversal, losing reference to the next node before rewiring
+- For cycle detection, not resetting the slow pointer correctly when finding cycle start
+- In merge operations, not advancing the tail pointer after assignment
+
+**Recursive vs Iterative:**
+- **Iterative**: O(1) space, preferred for reversal, merging, cycle detection
+- **Recursive**: O(n) space (call stack), cleaner for divide-and-conquer (sorted list to BST, merge sort on list)
+- Use recursion when the problem naturally splits into identical subproblems; otherwise prefer iterative for space efficiency
 
 ---
 
@@ -991,6 +1038,22 @@ boolean isValidParentheses(String s) {
         else if (stack.isEmpty() || stack.pop() != pairs.get(c)) return false;
     }
     return stack.isEmpty();
+}
+
+// Basic Calculator I (with parentheses): + - ( )
+int calculateI(String s) {
+    Deque<Integer> stack = new ArrayDeque<>();
+    int result = 0, num = 0, sign = 1;
+    for (int i = 0; i < s.length(); i++) {
+        char c = s.charAt(i);
+        if (Character.isDigit(c)) num = num * 10 + (c - '0');
+        else if (c == '+') { result += sign * num; num = 0; sign = 1; }
+        else if (c == '-') { result += sign * num; num = 0; sign = -1; }
+        else if (c == '(') { stack.push(result); stack.push(sign); result = 0; sign = 1; }
+        else if (c == ')') { result += sign * num; num = 0; result *= stack.pop(); result += stack.pop(); }
+    }
+    result += sign * num;
+    return result;
 }
 
 // Basic Calculator II (no parens): + - * /
@@ -1122,6 +1185,22 @@ int[] nextGreaterElement(int[] nums) {
     return res;
 }
 
+// Next Greater Element II (circular array) - traverse twice the length
+int[] nextGreaterElementsII(int[] nums) {
+    int n = nums.length;
+    int[] res = new int[n];
+    Arrays.fill(res, -1);
+    Deque<Integer> stack = new ArrayDeque<>();
+    for (int i = 0; i < 2 * n; i++) {
+        int idx = i % n;
+        while (!stack.isEmpty() && nums[stack.peek()] < nums[idx]) {
+            res[stack.pop()] = nums[idx];
+        }
+        if (i < n) stack.push(idx);
+    }
+    return res;
+}
+
 // Largest Rectangle in Histogram
 int largestRectangleArea(int[] heights) {
     Deque<Integer> stack = new ArrayDeque<>();
@@ -1136,6 +1215,24 @@ int largestRectangleArea(int[] heights) {
         stack.push(i);
     }
     return best;
+}
+
+// Trapping Rain Water (stack-based) - O(n) time, O(n) space
+int trapStack(int[] height) {
+    Deque<Integer> stack = new ArrayDeque<>();
+    int water = 0;
+    for (int i = 0; i < height.length; i++) {
+        while (!stack.isEmpty() && height[i] > height[stack.peek()]) {
+            int mid = stack.pop();
+            if (stack.isEmpty()) break;
+            int left = stack.peek();
+            int width = i - left - 1;
+            int boundedHeight = Math.min(height[left], height[i]) - height[mid];
+            water += width * boundedHeight;
+        }
+        stack.push(i);
+    }
+    return water;
 }
 
 // Daily Temperatures
@@ -1627,9 +1724,80 @@ private void collectVertical(TreeNode node, int col, int row, List<int[]> nodes)
     collectVertical(node.left, col - 1, row + 1, nodes);
     collectVertical(node.right, col + 1, row + 1, nodes);
 }
+
+// Binary Tree Maximum Path Sum - any node to any node
+int maxPathSum(TreeNode root) {
+    int[] max = new int[]{Integer.MIN_VALUE};
+    maxPathSumHelper(root, max);
+    return max[0];
+}
+private int maxPathSumHelper(TreeNode node, int[] max) {
+    if (node == null) return 0;
+    int left = Math.max(0, maxPathSumHelper(node.left, max));
+    int right = Math.max(0, maxPathSumHelper(node.right, max));
+    max[0] = Math.max(max[0], left + right + node.val);
+    return Math.max(left, right) + node.val;
+}
+
+// Balanced Binary Tree - height difference <= 1 for all nodes
+boolean isBalanced(TreeNode root) { return checkHeight(root) != -1; }
+private int checkHeight(TreeNode node) {
+    if (node == null) return 0;
+    int left = checkHeight(node.left);
+    if (left == -1) return -1;
+    int right = checkHeight(node.right);
+    if (right == -1) return -1;
+    if (Math.abs(left - right) > 1) return -1;
+    return Math.max(left, right) + 1;
+}
+
+// Construct BST from Preorder - O(n) using bounds
+TreeNode bstFromPreorder(int[] preorder) {
+    int[] idx = {0};
+    return buildBST(preorder, idx, Integer.MIN_VALUE, Integer.MAX_VALUE);
+}
+private TreeNode buildBST(int[] preorder, int[] idx, int min, int max) {
+    if (idx[0] == preorder.length) return null;
+    int val = preorder[idx[0]];
+    if (val < min || val > max) return null;
+    TreeNode node = new TreeNode(val);
+    idx[0]++;
+    node.left = buildBST(preorder, idx, min, val);
+    node.right = buildBST(preorder, idx, val, max);
+    return node;
+}
+
+// Serialize/Deserialize BST - use preorder (min-max bounds)
+String serializeBST(TreeNode root) {
+    StringBuilder sb = new StringBuilder();
+    serializeBSTHelper(root, sb);
+    return sb.toString();
+}
+private void serializeBSTHelper(TreeNode node, StringBuilder sb) {
+    if (node == null) return;
+    sb.append(node.val).append(",");
+    serializeBSTHelper(node.left, sb);
+    serializeBSTHelper(node.right, sb);
+}
+TreeNode deserializeBST(String data) {
+    if (data.isEmpty()) return null;
+    String[] vals = data.split(",");
+    int[] idx = {0};
+    return buildBSTFromString(vals, idx, Integer.MIN_VALUE, Integer.MAX_VALUE);
+}
+private TreeNode buildBSTFromString(String[] vals, int[] idx, int min, int max) {
+    if (idx[0] == vals.length) return null;
+    int val = Integer.parseInt(vals[idx[0]]);
+    if (val < min || val > max) return null;
+    TreeNode node = new TreeNode(val);
+    idx[0]++;
+    node.left = buildBSTFromString(vals, idx, min, val);
+    node.right = buildBSTFromString(vals, idx, val, max);
+    return node;
+}
 ```
 
-**Key problems:** Max Depth, Diameter of Binary Tree, LCA, Validate BST, Serialize/Deserialize, Binary Tree Right Side View, Path Sum II, Kth Smallest in BST, Construct Tree from Preorder+Inorder, Vertical Order Traversal.
+**Key problems:** Max Depth, Diameter of Binary Tree, LCA, Validate BST, Serialize/Deserialize, Binary Tree Right Side View, Path Sum II, Kth Smallest in BST, Construct Tree from Preorder+Inorder, Vertical Order Traversal, Binary Tree Maximum Path Sum, Balanced Binary Tree, Construct BST from Preorder, Serialize/Deserialize BST.
 
 ---
 
@@ -1801,9 +1969,48 @@ class MedianFinder {
         return low.size() > high.size() ? low.peek() : (low.peek() + high.peek()) / 2.0;
     }
 }
+
+// Reorganize String - max-heap to place most frequent chars with distance >= 2
+String reorganizeString(String s) {
+    int[] freq = new int[26];
+    for (char c : s.toCharArray()) freq[c - 'a']++;
+    PriorityQueue<int[]> pq = new PriorityQueue<>((a, b) -> b[1] - a[1]); // {char, freq}
+    for (int i = 0; i < 26; i++) if (freq[i] > 0) pq.offer(new int[]{i, freq[i]});
+    StringBuilder sb = new StringBuilder();
+    int[] prev = null;
+    while (!pq.isEmpty()) {
+        int[] curr = pq.poll();
+        sb.append((char) (curr[0] + 'a'));
+        curr[1]--;
+        if (prev != null && prev[1] > 0) pq.offer(prev);
+        prev = curr[1] > 0 ? curr : null;
+    }
+    return sb.length() == s.length() ? sb.toString() : "";
+}
+
+// Task Scheduler (heap approach) - greedy with max-heap + cooldown queue
+int leastIntervalHeap(char[] tasks, int n) {
+    int[] freq = new int[26];
+    for (char t : tasks) freq[t - 'A']++;
+    PriorityQueue<Integer> pq = new PriorityQueue<>(Collections.reverseOrder());
+    for (int f : freq) if (f > 0) pq.offer(f);
+    int time = 0;
+    Queue<int[]> cooldown = new ArrayDeque<>(); // {task count, available time}
+    while (!pq.isEmpty() || !cooldown.isEmpty()) {
+        time++;
+        if (!pq.isEmpty()) {
+            int count = pq.poll() - 1;
+            if (count > 0) cooldown.offer(new int[]{count, time + n});
+        }
+        if (!cooldown.isEmpty() && cooldown.peek()[1] == time) {
+            pq.offer(cooldown.poll()[0]);
+        }
+    }
+    return time;
+}
 ```
 
-**Key problems:** Kth Largest Element, Top K Frequent Elements/Words, Merge K Sorted Lists, Find Median from Data Stream, Task Scheduler, Meeting Rooms II.
+**Key problems:** Kth Largest Element, Top K Frequent Elements/Words, Merge K Sorted Lists, Find Median from Data Stream, Task Scheduler, Meeting Rooms II, Reorganize String.
 
 ---
 
@@ -1936,6 +2143,56 @@ boolean canFinish(int numCourses, int[][] prerequisites) {
         for (int next : graph.get(course)) if (--indegree[next] == 0) queue.offer(next);
     }
     return visited == numCourses;
+}
+
+// Course Schedule II - return ordering
+int[] findOrder(int numCourses, int[][] prerequisites) {
+    List<List<Integer>> graph = new ArrayList<>();
+    for (int i = 0; i < numCourses; i++) graph.add(new ArrayList<>());
+    int[] indegree = new int[numCourses];
+    for (int[] p : prerequisites) { graph.get(p[1]).add(p[0]); indegree[p[0]]++; }
+    Queue<Integer> queue = new ArrayDeque<>();
+    for (int i = 0; i < numCourses; i++) if (indegree[i] == 0) queue.offer(i);
+    int[] order = new int[numCourses];
+    int idx = 0;
+    while (!queue.isEmpty()) {
+        int course = queue.poll();
+        order[idx++] = course;
+        for (int next : graph.get(course)) if (--indegree[next] == 0) queue.offer(next);
+    }
+    return idx == numCourses ? order : new int[0];
+}
+
+// Word Ladder - BFS on word graph (change one character at a time)
+int ladderLength(String beginWord, String endWord, List<String> wordList) {
+    Set<String> dict = new HashSet<>(wordList);
+    if (!dict.contains(endWord)) return 0;
+    Queue<String> queue = new ArrayDeque<>();
+    queue.offer(beginWord);
+    int level = 1;
+    while (!queue.isEmpty()) {
+        int size = queue.size();
+        for (int i = 0; i < size; i++) {
+            String word = queue.poll();
+            if (word.equals(endWord)) return level;
+            char[] chars = word.toCharArray();
+            for (int j = 0; j < chars.length; j++) {
+                char original = chars[j];
+                for (char c = 'a'; c <= 'z'; c++) {
+                    if (c == original) continue;
+                    chars[j] = c;
+                    String newWord = new String(chars);
+                    if (dict.contains(newWord)) {
+                        dict.remove(newWord);
+                        queue.offer(newWord);
+                    }
+                }
+                chars[j] = original;
+            }
+        }
+        level++;
+    }
+    return 0;
 }
 
 // Pacific Atlantic Water Flow - reverse multi-source BFS/DFS from both oceans, intersect reachable sets
@@ -2522,6 +2779,70 @@ boolean isInterleave(String s1, String s2, String s3) {
     }
     return dp[m][n];
 }
+
+// Distinct Subsequences - count ways s can form t by deleting chars
+int numDistinct(String s, String t) {
+    int m = s.length(), n = t.length();
+    int[] dp = new int[n + 1];
+    dp[0] = 1;
+    for (int i = 1; i <= m; i++) {
+        for (int j = n; j >= 1; j--) {
+            if (s.charAt(i - 1) == t.charAt(j - 1)) dp[j] += dp[j - 1];
+        }
+    }
+    return dp[n];
+}
+
+// Regular Expression Matching - '.' matches any char, '*' matches zero or more of preceding
+boolean isMatch(String s, String p) {
+    int m = s.length(), n = p.length();
+    boolean[][] dp = new boolean[m + 1][n + 1];
+    dp[0][0] = true;
+    for (int j = 2; j <= n; j += 2) dp[0][j] = dp[0][j - 2] && p.charAt(j - 1) == '*';
+    for (int i = 1; i <= m; i++) {
+        for (int j = 1; j <= n; j++) {
+            if (p.charAt(j - 1) == '*') {
+                dp[i][j] = dp[i][j - 2] || (dp[i - 1][j] && (s.charAt(i - 1) == p.charAt(j - 2) || p.charAt(j - 2) == '.'));
+            } else {
+                dp[i][j] = dp[i - 1][j - 1] && (s.charAt(i - 1) == p.charAt(j - 1) || p.charAt(j - 1) == '.');
+            }
+        }
+    }
+    return dp[m][n];
+}
+
+// Wildcard Matching - '?' matches any single char, '*' matches any sequence
+boolean isMatchWildcard(String s, String p) {
+    int m = s.length(), n = p.length();
+    boolean[][] dp = new boolean[m + 1][n + 1];
+    dp[0][0] = true;
+    for (int j = 1; j <= n; j++) dp[0][j] = dp[0][j - 1] && p.charAt(j - 1) == '*';
+    for (int i = 1; i <= m; i++) {
+        for (int j = 1; j <= n; j++) {
+            if (p.charAt(j - 1) == '*') dp[i][j] = dp[i][j - 1] || dp[i - 1][j];
+            else if (p.charAt(j - 1) == '?' || s.charAt(i - 1) == p.charAt(j - 1)) dp[i][j] = dp[i - 1][j - 1];
+        }
+    }
+    return dp[m][n];
+}
+
+// Burst Balloons - dp[i][j] = max coins from bursting balloons in (i, j)
+int maxCoins(int[] nums) {
+    int n = nums.length;
+    int[] arr = new int[n + 2];
+    arr[0] = arr[n + 1] = 1;
+    for (int i = 0; i < n; i++) arr[i + 1] = nums[i];
+    int[][] dp = new int[n + 2][n + 2];
+    for (int len = 1; len <= n; len++) {
+        for (int i = 1; i <= n - len + 1; i++) {
+            int j = i + len - 1;
+            for (int k = i; k <= j; k++) {
+                dp[i][j] = Math.max(dp[i][j], arr[i - 1] * arr[k] * arr[j + 1] + dp[i][k - 1] + dp[k + 1][j]);
+            }
+        }
+    }
+    return dp[1][n];
+}
 ```
 
 ### Interval / Partition DP
@@ -3092,9 +3413,53 @@ int countSubstrings(String s) {
     }
     return count;
 }
+
+// Rabin-Karp Rolling Hash - pattern matching in O(n+m) average
+int rabinKarpSearch(String text, String pattern) {
+    int n = text.length(), m = pattern.length();
+    if (m > n) return -1;
+    long base = 256, mod = 101, h = 1;
+    for (int i = 0; i < m - 1; i++) h = (h * base) % mod;
+    long patHash = 0, txtHash = 0;
+    for (int i = 0; i < m; i++) {
+        patHash = (base * patHash + pattern.charAt(i)) % mod;
+        txtHash = (base * txtHash + text.charAt(i)) % mod;
+    }
+    for (int i = 0; i <= n - m; i++) {
+        if (patHash == txtHash && text.substring(i, i + m).equals(pattern)) return i;
+        if (i < n - m) {
+            txtHash = (base * (txtHash - text.charAt(i) * h) + text.charAt(i + m)) % mod;
+            if (txtHash < 0) txtHash += mod;
+        }
+    }
+    return -1;
+}
+
+// Manacher's Algorithm - longest palindromic substring in O(n)
+String longestPalindromeManacher(String s) {
+    if (s == null || s.length() == 0) return "";
+    StringBuilder t = new StringBuilder("^");
+    for (char c : s.toCharArray()) { t.append("#").append(c); }
+    t.append("#$");
+    int n = t.length();
+    int[] p = new int[n];
+    int center = 0, right = 0;
+    for (int i = 1; i < n - 1; i++) {
+        int mirror = 2 * center - i;
+        if (i < right) p[i] = Math.min(right - i, p[mirror]);
+        while (t.charAt(i + 1 + p[i]) == t.charAt(i - 1 - p[i])) p[i]++;
+        if (i + p[i] > right) { center = i; right = i + p[i]; }
+    }
+    int maxLen = 0, centerIndex = 0;
+    for (int i = 1; i < n - 1; i++) {
+        if (p[i] > maxLen) { maxLen = p[i]; centerIndex = i; }
+    }
+    int start = (centerIndex - maxLen) / 2;
+    return s.substring(start, start + maxLen);
+}
 ```
 
-**Key problems:** Implement strStr() (KMP), Longest Palindromic Substring/Subsequence, Valid Anagram, Group Anagrams, Longest Common Prefix, Word Break, Palindromic Substrings Count.
+**Key problems:** Implement strStr() (KMP), Longest Palindromic Substring/Subsequence, Valid Anagram, Group Anagrams, Longest Common Prefix, Word Break, Palindromic Substrings Count, Rabin-Karp, Manacher's Algorithm.
 
 ---
 
@@ -3254,13 +3619,274 @@ class TimeMap {
         return resIdx == -1 ? "" : values.get(key).get(resIdx);
     }
 }
+
+// Design HashMap - custom implementation with chaining
+class MyHashMap {
+    private static final int SIZE = 10000;
+    private final Node[] buckets;
+    class Node { int key, val; Node next; Node(int k, int v) { key = k; val = v; } }
+    MyHashMap() { buckets = new Node[SIZE]; }
+    void put(int key, int value) {
+        int idx = key % SIZE;
+        Node node = buckets[idx];
+        while (node != null) {
+            if (node.key == key) { node.val = value; return; }
+            node = node.next;
+        }
+        Node newNode = new Node(key, value);
+        newNode.next = buckets[idx];
+        buckets[idx] = newNode;
+    }
+    int get(int key) {
+        int idx = key % SIZE;
+        Node node = buckets[idx];
+        while (node != null) {
+            if (node.key == key) return node.val;
+            node = node.next;
+        }
+        return -1;
+    }
+    void remove(int key) {
+        int idx = key % SIZE;
+        Node node = buckets[idx];
+        Node prev = null;
+        while (node != null) {
+            if (node.key == key) {
+                if (prev == null) buckets[idx] = node.next;
+                else prev.next = node.next;
+                return;
+            }
+            prev = node;
+            node = node.next;
+        }
+    }
+}
+
+// Design Linked List - get, add at head, add at tail, add at index, delete at index
+class MyLinkedList {
+    class Node { int val; Node next; Node(int v) { val = v; } }
+    private Node head, tail;
+    private int size;
+    MyLinkedList() { head = tail = null; size = 0; }
+    int get(int index) {
+        if (index < 0 || index >= size) return -1;
+        Node node = head;
+        for (int i = 0; i < index; i++) node = node.next;
+        return node.val;
+    }
+    void addAtHead(int val) {
+        Node node = new Node(val);
+        node.next = head;
+        head = node;
+        if (tail == null) tail = node;
+        size++;
+    }
+    void addAtTail(int val) {
+        Node node = new Node(val);
+        if (tail == null) head = tail = node;
+        else { tail.next = node; tail = node; }
+        size++;
+    }
+    void addAtIndex(int index, int val) {
+        if (index < 0 || index > size) return;
+        if (index == 0) addAtHead(val);
+        else if (index == size) addAtTail(val);
+        else {
+            Node node = head;
+            for (int i = 0; i < index - 1; i++) node = node.next;
+            Node newNode = new Node(val);
+            newNode.next = node.next;
+            node.next = newNode;
+            size++;
+        }
+    }
+    void deleteAtIndex(int index) {
+        if (index < 0 || index >= size) return;
+        if (index == 0) { head = head.next; if (head == null) tail = null; }
+        else {
+            Node node = head;
+            for (int i = 0; i < index - 1; i++) node = node.next;
+            node.next = node.next.next;
+            if (index == size - 1) tail = node;
+        }
+        size--;
+    }
+}
 ```
 
-**Key problems:** LRU Cache, LFU Cache, Design Twitter, Insert Delete GetRandom O(1), Design HashMap, Time-based Key-Value Store, Min Stack.
+**Key problems:** LRU Cache, LFU Cache, Design Twitter, Insert Delete GetRandom O(1), Design HashMap, Design Linked List, Time-based Key-Value Store, Min Stack.
 
 ---
 
-## 32. Recurrence Relations & Simulation Problems
+## 32. Data Structure Design (Fundamental Implementations)
+
+**When to use:** Implementing fundamental data structures from scratch, understanding internal mechanics, API design, edge case handling.
+
+**Intuition:** Each data structure has a core invariant that must be maintained — arrays give O(1) random access, linked lists give O(1) insertion/deletion at known positions, trees give O(log n) search with ordering, hash tables give O(1) average lookup via hashing. The implementation must preserve these invariants while handling edge cases (empty structure, single element, overflow).
+
+**Flow:** Define the API (get, put, add, remove, etc.) → choose the underlying storage (array, linked list, tree, hash table) → implement each operation while maintaining the core invariant → handle edge cases (null inputs, out-of-bounds indices, capacity limits).
+
+**Complexity:** Varies by structure — arrays O(1) access, O(n) insertion; linked lists O(n) access, O(1) insertion at known position; hash tables O(1) average, O(n) worst case; trees O(log n) average, O(n) worst case.
+
+```java
+// Design Stack using Array (dynamic resizing)
+class MyStack {
+    private int[] arr;
+    private int top, capacity;
+    MyStack() { capacity = 10; arr = new int[capacity]; top = -1; }
+    void push(int x) {
+        if (top == capacity - 1) { capacity *= 2; arr = Arrays.copyOf(arr, capacity); }
+        arr[++top] = x;
+    }
+    int pop() { if (top == -1) throw new EmptyStackException(); return arr[top--]; }
+    int peek() { if (top == -1) throw new EmptyStackException(); return arr[top]; }
+    boolean isEmpty() { return top == -1; }
+}
+
+// Design Queue using Array (circular buffer)
+class MyQueue {
+    private int[] arr;
+    private int front, rear, size, capacity;
+    MyQueue() { capacity = 10; arr = new int[capacity]; front = rear = size = 0; }
+    void push(int x) {
+        if (size == capacity) { capacity *= 2; arr = Arrays.copyOf(arr, capacity); }
+        arr[rear] = x;
+        rear = (rear + 1) % capacity;
+        size++;
+    }
+    int pop() { if (size == 0) throw new NoSuchElementException(); int val = arr[front]; front = (front + 1) % capacity; size--; return val; }
+    int peek() { if (size == 0) throw new NoSuchElementException(); return arr[front]; }
+    boolean isEmpty() { return size == 0; }
+}
+
+// Design Min Stack (already in Section 9, but included here for completeness)
+// See Section 9 for implementation
+
+// Design Deque using Doubly Linked List
+class MyDeque {
+    class Node { int val; Node prev, next; Node(int v) { val = v; } }
+    private Node head, tail;
+    private int size;
+    MyDeque() { head = tail = null; size = 0; }
+    void addFirst(int val) {
+        Node node = new Node(val);
+        if (head == null) head = tail = node;
+        else { node.next = head; head.prev = node; head = node; }
+        size++;
+    }
+    void addLast(int val) {
+        Node node = new Node(val);
+        if (tail == null) head = tail = node;
+        else { tail.next = node; node.prev = tail; tail = node; }
+        size++;
+    }
+    int removeFirst() { if (head == null) throw new NoSuchElementException(); int val = head.val; head = head.next; if (head != null) head.prev = null; else tail = null; size--; return val; }
+    int removeLast() { if (tail == null) throw new NoSuchElementException(); int val = tail.val; tail = tail.prev; if (tail != null) tail.next = null; else head = null; size--; return val; }
+    int getFirst() { if (head == null) throw new NoSuchElementException(); return head.val; }
+    int getLast() { if (tail == null) throw new NoSuchElementException(); return tail.val; }
+    boolean isEmpty() { return size == 0; }
+}
+
+// Design HashSet (simpler version without chaining)
+class MyHashSet {
+    private boolean[] storage;
+    private static final int SIZE = 1000001;
+    MyHashSet() { storage = new boolean[SIZE]; }
+    void add(int key) { storage[key] = true; }
+    void remove(int key) { storage[key] = false; }
+    boolean contains(int key) { return storage[key]; }
+}
+
+// Design PriorityQueue using Heap (min-heap)
+class MyPriorityQueue {
+    private List<Integer> heap;
+    MyPriorityQueue() { heap = new ArrayList<>(); }
+    void add(int val) { heap.add(val); siftUp(heap.size() - 1); }
+    int poll() {
+        if (heap.isEmpty()) throw new NoSuchElementException();
+        int min = heap.get(0);
+        int last = heap.remove(heap.size() - 1);
+        if (!heap.isEmpty()) { heap.set(0, last); siftDown(0); }
+        return min;
+    }
+    int peek() { if (heap.isEmpty()) throw new NoSuchElementException(); return heap.get(0); }
+    boolean isEmpty() { return heap.isEmpty(); }
+    private void siftUp(int idx) {
+        while (idx > 0) {
+            int parent = (idx - 1) / 2;
+            if (heap.get(parent) <= heap.get(idx)) break;
+            swap(parent, idx);
+            idx = parent;
+        }
+    }
+    private void siftDown(int idx) {
+        int n = heap.size();
+        while (idx < n) {
+            int left = 2 * idx + 1, right = 2 * idx + 2, smallest = idx;
+            if (left < n && heap.get(left) < heap.get(smallest)) smallest = left;
+            if (right < n && heap.get(right) < heap.get(smallest)) smallest = right;
+            if (smallest == idx) break;
+            swap(idx, smallest);
+            idx = smallest;
+        }
+    }
+    private void swap(int i, int j) { int tmp = heap.get(i); heap.set(i, heap.get(j)); heap.set(j, tmp); }
+}
+
+// Design Binary Search Tree
+class MyBST {
+    class Node { int val; Node left, right; Node(int v) { val = v; } }
+    private Node root;
+    void insert(int val) { root = insert(root, val); }
+    private Node insert(Node node, int val) {
+        if (node == null) return new Node(val);
+        if (val < node.val) node.left = insert(node.left, val);
+        else if (val > node.val) node.right = insert(node.right, val);
+        return node;
+    }
+    boolean search(int val) { return search(root, val); }
+    private boolean search(Node node, int val) {
+        if (node == null) return false;
+        if (val == node.val) return true;
+        return val < node.val ? search(node.left, val) : search(node.right, val);
+    }
+    void delete(int val) { root = delete(root, val); }
+    private Node delete(Node node, int val) {
+        if (node == null) return null;
+        if (val < node.val) node.left = delete(node.left, val);
+        else if (val > node.val) node.right = delete(node.right, val);
+        else {
+            if (node.left == null) return node.right;
+            if (node.right == null) return node.left;
+            Node min = findMin(node.right);
+            node.val = min.val;
+            node.right = delete(node.right, min.val);
+        }
+        return node;
+    }
+    private Node findMin(Node node) { while (node.left != null) node = node.left; return node; }
+}
+```
+
+**Key problems:** Implement Stack using Queues, Implement Queue using Stacks, Design Stack, Design Queue, Design Deque, Design HashSet, Design PriorityQueue, Design BST, Design Circular Queue, Design Skip List.
+
+**Common Pitfalls:**
+- **Off-by-one errors** in circular buffer implementations (front/rear pointer management)
+- **Forgetting to update size** in dynamic structures
+- **Not handling null/empty cases** (peek/pop on empty structure)
+- **Resizing issues** - not copying elements correctly when expanding arrays
+- **Hash collisions** - simple implementations often ignore collision handling
+- **Memory leaks** - not properly dereferencing removed nodes in linked structures
+
+**Space Optimization:**
+- Use circular buffers for queues to avoid shifting elements
+- Use lazy deletion (mark as deleted) for frequent insert/delete patterns
+- Resize arrays geometrically (e.g., double capacity) to amortize resize cost
+- For hash tables, consider load factor to balance between space and collision rate
+
+---
+
+## 33. Recurrence Relations & Simulation Problems
 
 **When to use:** Problems defined by a recursive rule on `n` (or state), often solvable via direct recurrence, simulation, or math derived from the recurrence (e.g., Josephus, Tower of Hanoi, tiling problems). Distinguish from DP: here the recurrence itself IS the answer — sometimes closed-form, sometimes just simulated with a data structure.
 
@@ -3327,7 +3953,7 @@ int tilingWays(int n) {
 
 ---
 
-## 33. Segment Tree / Fenwick Tree (Range Queries)
+## 34. Segment Tree / Fenwick Tree (Range Queries)
 
 **When to use:** Range sum/min/max queries **with point or range updates** — i.e. when the array mutates between queries, so a plain prefix-sum array (O(n) rebuild per update) is too slow.
 
@@ -3388,13 +4014,90 @@ class SegmentTree {
         return query(2 * node + 1, lo, mid, l, r) + query(2 * node + 2, mid + 1, hi, l, r);
     }
 }
+
+// Segment Tree with Lazy Propagation for range updates
+class SegmentTreeLazy {
+    private final int[] tree, lazy;
+    private final int n;
+    SegmentTreeLazy(int[] nums) {
+        n = nums.length;
+        tree = new int[4 * n];
+        lazy = new int[4 * n];
+        build(nums, 0, 0, n - 1);
+    }
+    private void build(int[] nums, int node, int lo, int hi) {
+        if (lo == hi) { tree[node] = nums[lo]; return; }
+        int mid = (lo + hi) / 2;
+        build(nums, 2 * node + 1, lo, mid);
+        build(nums, 2 * node + 2, mid + 1, hi);
+        tree[node] = tree[2 * node + 1] + tree[2 * node + 2];
+    }
+    private void push(int node, int lo, int hi) {
+        if (lazy[node] != 0) {
+            int mid = (lo + hi) / 2;
+            tree[2 * node + 1] += lazy[node] * (mid - lo + 1);
+            tree[2 * node + 2] += lazy[node] * (hi - mid);
+            lazy[2 * node + 1] += lazy[node];
+            lazy[2 * node + 2] += lazy[node];
+            lazy[node] = 0;
+        }
+    }
+    void rangeUpdate(int l, int r, int val) { rangeUpdate(0, 0, n - 1, l, r, val); }
+    private void rangeUpdate(int node, int lo, int hi, int l, int r, int val) {
+        if (r < lo || hi < l) return;
+        if (l <= lo && hi <= r) {
+            tree[node] += val * (hi - lo + 1);
+            lazy[node] += val;
+            return;
+        }
+        push(node, lo, hi);
+        int mid = (lo + hi) / 2;
+        rangeUpdate(2 * node + 1, lo, mid, l, r, val);
+        rangeUpdate(2 * node + 2, mid + 1, hi, l, r, val);
+        tree[node] = tree[2 * node + 1] + tree[2 * node + 2];
+    }
+    int rangeQuery(int l, int r) { return rangeQuery(0, 0, n - 1, l, r); }
+    private int rangeQuery(int node, int lo, int hi, int l, int r) {
+        if (r < lo || hi < l) return 0;
+        if (l <= lo && hi <= r) return tree[node];
+        push(node, lo, hi);
+        int mid = (lo + hi) / 2;
+        return rangeQuery(2 * node + 1, lo, mid, l, r) + rangeQuery(2 * node + 2, mid + 1, hi, l, r);
+    }
+}
+
+// 2D Fenwick Tree for 2D range sum queries
+class FenwickTree2D {
+    private final int[][] tree;
+    private final int rows, cols;
+    FenwickTree2D(int rows, int cols) {
+        this.rows = rows;
+        this.cols = cols;
+        tree = new int[rows + 1][cols + 1];
+    }
+    void update(int row, int col, int delta) {
+        for (int i = row + 1; i <= rows; i += i & (-i))
+            for (int j = col + 1; j <= cols; j += j & (-j))
+                tree[i][j] += delta;
+    }
+    int query(int row, int col) {
+        int sum = 0;
+        for (int i = row + 1; i > 0; i -= i & (-i))
+            for (int j = col + 1; j > 0; j -= j & (-j))
+                sum += tree[i][j];
+        return sum;
+    }
+    int rangeQuery(int row1, int col1, int row2, int col2) {
+        return query(row2, col2) - query(row1 - 1, col2) - query(row2, col1 - 1) + query(row1 - 1, col1 - 1);
+    }
+}
 ```
 
-**Key problems:** Range Sum Query - Mutable, Count of Smaller Numbers After Self, Range Sum Query 2D - Mutable, Falling Squares, Number of Longest Increasing Subsequence (with BIT optimization).
+**Key problems:** Range Sum Query - Mutable, Count of Smaller Numbers After Self, Range Sum Query 2D - Mutable, Falling Squares, Number of Longest Increasing Subsequence (with BIT optimization), Range Update Queries (lazy propagation), 2D Range Sum Queries.
 
 ---
 
-## 34. Sweep Line Algorithm
+## 35. Sweep Line Algorithm
 
 **When to use:** Problems involving intervals/events on a line where you process events in sorted (usually time) order while maintaining running state — overlaps, skyline, calendar booking.
 
@@ -3452,7 +4155,7 @@ List<int[]> getSkyline(int[][] buildings) {
 
 ---
 
-## 35. Advanced Graph Algorithms (SCC, Bridges, Articulation Points)
+## 36. Advanced Graph Algorithms (SCC, Bridges, Articulation Points)
 
 **When to use:** Finding strongly connected components (cycles of mutual reachability in directed graphs), or finding critical edges/nodes whose removal disconnects an undirected graph.
 
@@ -3493,7 +4196,7 @@ private void dfsBridge(int u, int parent, List<List<Integer>> graph, boolean[] v
 
 ---
 
-## 36. Math Essentials (GCD, Sieve, Fast Exponentiation)
+## 37. Math Essentials (GCD, Sieve, Fast Exponentiation)
 
 **When to use:** Problems requiring number theory — reducing fractions, primality checks over a range, modular exponentiation (large powers under a modulus), combinatorics.
 
@@ -3537,7 +4240,7 @@ long fastPow(long a, long n, long mod) {
 
 ---
 
-## 37. Game Theory / Minimax DP
+## 38. Game Theory / Minimax DP
 
 **When to use:** Two-player turn-based games where both players play optimally — determine the winner, or the optimal score difference (Nim game, stone/coin picking games, predicting the winner).
 
@@ -3578,7 +4281,7 @@ boolean winnerXorNim(int[] piles) {
 
 ---
 
-## 38. Complexity Cheatsheet
+## 39. Complexity Cheatsheet
 
 | Structure / Algorithm | Time | Space | Notes |
 |---|---|---|---|
